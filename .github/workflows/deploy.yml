@@ -65,30 +65,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/${{ secrets.EC2_USER }}/pepper-escrow
-
-            # Pull latest code
             git pull origin main
-
-            # Write production .env (docker-compose reads this automatically)
-            cat > .env << 'EOF'
-DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
-APP_URL=${{ secrets.APP_URL }}
-APP_PORT=80
-ESCROW_DEFAULT_GATEWAY=${{ secrets.ESCROW_DEFAULT_GATEWAY }}
-PAYSTACK_PUBLIC_KEY=${{ secrets.PAYSTACK_PUBLIC_KEY }}
-PAYSTACK_SECRET_KEY=${{ secrets.PAYSTACK_SECRET_KEY }}
-STRIPE_PUBLIC_KEY=${{ secrets.STRIPE_PUBLIC_KEY }}
-STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
-SEERBIT_PUBLIC_KEY=${{ secrets.SEERBIT_PUBLIC_KEY }}
-SEERBIT_SECRET_KEY=${{ secrets.SEERBIT_SECRET_KEY }}
-SEERBIT_ENCRYPTION_KEY=${{ secrets.SEERBIT_ENCRYPTION_KEY }}
-FLUTTERWAVE_PUBLIC_KEY=${{ secrets.FLUTTERWAVE_PUBLIC_KEY }}
-FLUTTERWAVE_SECRET_KEY=${{ secrets.FLUTTERWAVE_SECRET_KEY }}
-FLUTTERWAVE_ENCRYPTION_KEY=${{ secrets.FLUTTERWAVE_ENCRYPTION_KEY }}
-EOF
-
-            # Build fresh image and restart
             docker compose build --no-cache app
             docker compose up -d --force-recreate
             docker image prune -f
