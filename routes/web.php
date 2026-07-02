@@ -14,7 +14,7 @@ Route::prefix('merchant')->name('merchant.')->group(function () {
     Route::get('/register', [\App\Http\Controllers\Merchant\AuthController::class, 'showRegisterForm'])->name('register');
     Route::post('/register', [\App\Http\Controllers\Merchant\AuthController::class, 'register'])->name('register.submit');
     Route::get('/login', [\App\Http\Controllers\Merchant\AuthController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [\App\Http\Controllers\Merchant\AuthController::class, 'login'])->name('login');
+    Route::post('/login', [\App\Http\Controllers\Merchant\AuthController::class, 'login'])->name('login.submit');
     Route::get('/logout', [\App\Http\Controllers\Merchant\AuthController::class, 'logout'])->name('logout');
 });
 
@@ -91,7 +91,7 @@ Route::group([
     'middleware' => 'backend.auth',
 ], function () {
     Route::get('/', 'BackendController@getDashboard')->name('escrow.dashboard');
-    Route::get('/dashboard', 'BackendController@getDashboard')->name('escrow.dashboard');
+    Route::get('/dashboard', 'BackendController@getDashboard');
 
     Route::get('/users', 'LoginController@getUsers')->name('escrow.users');
     Route::post('/users/register', 'LoginController@addUser')->name('escrow.user.save');
@@ -104,7 +104,7 @@ Route::group([
 
 Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function () {
     Route::get('/', [\App\Http\Controllers\Admin\AdminController::class, 'dashboard'])->name('dashboard');
-    Route::get('/dashboard', [\App\Http\Controllers\Admin\AdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/dashboard', [\App\Http\Controllers\Admin\AdminController::class, 'dashboard']);
     Route::get('/merchants', [\App\Http\Controllers\Admin\AdminController::class, 'merchants'])->name('merchants');
     Route::get('/merchants/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'merchantDetail'])->name('merchant.detail');
     Route::post('/merchants/{id}/toggle', [\App\Http\Controllers\Admin\AdminController::class, 'merchantToggleStatus'])->name('merchant.toggle');
