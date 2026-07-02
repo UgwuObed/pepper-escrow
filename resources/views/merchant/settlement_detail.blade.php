@@ -1,15 +1,7 @@
 @extends('merchant.layout')
 @section('title', 'Settlement Detail')
 @section('content')
-<div class="p-6">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">Settlement {{ $settlement->batch_number }}</h1>
-        <div class="flex gap-3">
-            <a href="{{ route('merchant.settlements') }}" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Back to Settlements</a>
-            <a href="{{ route('merchant.dashboard') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Dashboard</a>
-            <a href="{{ route('merchant.logout') }}" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Logout</a>
-        </div>
-    </div>
+<h1 class="text-2xl font-bold mb-6">Settlement {{ $settlement->batch_number }}</h1>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white p-6 rounded-lg shadow">
@@ -93,5 +85,4 @@
             </table>
         </div>
     </div>
-</div>
 @endsection

@@ -1,15 +1,7 @@
 @extends('merchant.layout')
 @section('title', 'Virtual Accounts')
 @section('content')
-<div class="p-6">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">Virtual Accounts</h1>
-        <div class="flex gap-3">
-            <a href="{{ route('merchant.dashboard') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Dashboard</a>
-            <a href="{{ route('merchant.transactions') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Transactions</a>
-            <a href="{{ route('merchant.logout') }}" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Logout</a>
-        </div>
-    </div>
+<h1 class="text-2xl font-bold mb-6">Virtual Accounts</h1>
 
     <div class="bg-white p-6 rounded-lg shadow">
         <div class="flex justify-between items-center mb-4">
@@ -72,5 +64,4 @@
         </div>
         @endif
     </div>
-</div>
 @endsection

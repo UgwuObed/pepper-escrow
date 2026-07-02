@@ -1,17 +1,8 @@
 @extends('merchant.layout')
 @section('title', 'Wallet Transactions')
 @section('content')
-<div class="p-6">
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-3xl font-bold">Wallet Transactions</h1>
-            <p class="text-gray-500">User: <code class="font-mono">{{ $wallet->user_identifier }}</code> &middot; {{ $wallet->currency }} &middot; {{ $wallet->type }}</p>
-        </div>
-        <div class="flex gap-3">
-            <a href="{{ route('merchant.wallets') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Back to Wallets</a>
-            <a href="{{ route('merchant.dashboard') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Dashboard</a>
-        </div>
-    </div>
+<h1 class="text-2xl font-bold mb-2">Wallet Transactions</h1>
+    <p class="text-gray-500 mb-6">User: <code class="font-mono">{{ $wallet->user_identifier }}</code> &middot; {{ $wallet->currency }} &middot; {{ $wallet->type }}</p>
 
     <div class="grid grid-cols-3 gap-4 mb-6">
         <div class="bg-white p-4 rounded-lg shadow">
@@ -77,5 +68,4 @@
             {{ $transactions->links() }}
         </div>
     </div>
-</div>
 @endsection

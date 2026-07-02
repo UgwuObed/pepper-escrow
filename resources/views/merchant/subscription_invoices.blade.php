@@ -1,15 +1,7 @@
 @extends('merchant.layout')
 @section('title', 'Subscription Invoices')
 @section('content')
-<div class="p-6">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">Invoices</h1>
-        <div class="flex gap-3">
-            <a href="{{ route('merchant.subscriptions') }}" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Back to Subscriptions</a>
-            <a href="{{ route('merchant.dashboard') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Dashboard</a>
-            <a href="{{ route('merchant.logout') }}" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Logout</a>
-        </div>
-    </div>
+<h1 class="text-2xl font-bold mb-6">Invoices</h1>
 
     <div class="bg-white p-6 rounded-lg shadow mb-6">
         <h2 class="text-xl font-bold mb-2">{{ $subscription->plan->name ?? 'Deleted Plan' }}</h2>
@@ -69,5 +61,4 @@
         <div class="mt-4">{{ $invoices->links() }}</div>
         @endif
     </div>
-</div>
 @endsection

@@ -2,18 +2,7 @@
 @section('title', 'Listing Fees')
 @section('content')
 <div class="p-6">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">Listing Fees</h1>
-        <div class="flex gap-3">
-            <a href="{{ route('merchant.reward-programs') }}" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Rewards</a>
-            <a href="{{ route('merchant.dashboard') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Dashboard</a>
-            <a href="{{ route('merchant.logout') }}" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Logout</a>
-        </div>
-    </div>
-
-    @if (session('success'))
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">{{ session('success') }}</div>
-    @endif
+    <h1 class="text-3xl font-bold mb-6">Listing Fees</h1>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="bg-white p-6 rounded-lg shadow">

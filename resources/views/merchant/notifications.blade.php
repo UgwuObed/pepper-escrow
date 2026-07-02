@@ -2,14 +2,7 @@
 @section('title', 'Notifications')
 @section('content')
 <div class="p-6">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">Notification Log</h1>
-        <div class="flex gap-3">
-            <a href="{{ route('merchant.settings') }}" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Webhook Settings</a>
-            <a href="{{ route('merchant.dashboard') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Dashboard</a>
-            <a href="{{ route('merchant.logout') }}" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Logout</a>
-        </div>
-    </div>
+    <h1 class="text-3xl font-bold mb-6">Notification Log</h1>
 
     <div class="bg-white p-6 rounded-lg shadow">
         <div class="flex justify-between items-center mb-4">

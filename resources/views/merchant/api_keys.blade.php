@@ -1,28 +1,7 @@
 @extends('merchant.layout')
 @section('title', 'API Keys')
 @section('content')
-<div class="p-6">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">API Keys</h1>
-        <div class="flex gap-3">
-            <a href="{{ route('merchant.dashboard') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Dashboard</a>
-            <a href="{{ route('merchant.settings') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Settings</a>
-            <a href="{{ route('merchant.bank-accounts') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Bank Accounts</a>
-            <a href="{{ route('merchant.advanced-settings') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Advanced</a>
-            <a href="{{ route('merchant.logout') }}" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Logout</a>
-        </div>
-    </div>
-
-    @if (session('success'))
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">{{ session('success') }}</div>
-    @endif
-    @if ($errors->any())
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            @foreach ($errors->all() as $error)
-                <p>{{ $error }}</p>
-            @endforeach
-        </div>
-    @endif
+<h1 class="text-2xl font-bold mb-6">API Keys</h1>
 
     <div class="bg-white p-6 rounded-lg shadow mb-8">
         <h2 class="text-xl font-bold mb-4">Credentials</h2>
@@ -67,7 +46,6 @@
             </div>
         </form>
     </div>
-</div>
 
 <script>
 function toggleSecret() {
