@@ -16,8 +16,8 @@ WORKDIR /var/www
 COPY . .
 
 RUN cp .env.example .env && \
-    php artisan key:generate && \
-    composer install --no-interaction --optimize-autoloader --no-dev
+    composer install --no-interaction --optimize-autoloader --no-dev && \
+    php artisan key:generate
 
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache && \
     chmod -R 755 /var/www/storage /var/www/bootstrap/cache
