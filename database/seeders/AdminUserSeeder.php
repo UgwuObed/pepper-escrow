@@ -10,17 +10,19 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        User::create([
-            'name' => 'Admin',
-            'email' => 'admin@pepperescrow.com',
-            'password' => Hash::make('password'),
-            'firstName' => 'Super',
-            'lastName' => 'Admin',
-            'phoneNo' => '+2348000000000',
-            'job_title' => 'System Administrator',
-            'account_type' => 'admin',
-            'status' => true,
-            'super_admin' => true,
-        ]);
+        User::firstOrCreate(
+            ['email' => 'admin@pepperescrow.com'],
+            [
+                'name' => 'Admin',
+                'password' => Hash::make('password'),
+                'firstName' => 'Super',
+                'lastName' => 'Admin',
+                'phoneNo' => '+2348000000000',
+                'job_title' => 'System Administrator',
+                'account_type' => 'admin',
+                'status' => true,
+                'super_admin' => true,
+            ]
+        );
     }
 }
