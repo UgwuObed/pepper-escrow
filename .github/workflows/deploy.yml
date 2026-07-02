@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  # ─── Continuous Integration ─────────────────────────────────────
+
   tests:
     runs-on: ubuntu-latest
     services:
@@ -68,6 +68,16 @@ jobs:
           script: |
             cd /home/${{ secrets.EC2_USER }}/pepper-escrow
             git pull origin main
+
+            # Ensure .env exists with APP_KEY (generated only once)
+            if [ ! -f .env ]; then
+              cp .env.example .env
+            fi
+            if ! grep -qE '^APP_KEY=base64:' .env; then
+              KEY="base64:$(openssl rand -base64 32)"
+              sed -i "s|^APP_KEY=.*|APP_KEY=$KEY|" .env
+            fi
+
             docker compose build --no-cache app
             docker compose up -d --force-recreate
             docker image prune -f
