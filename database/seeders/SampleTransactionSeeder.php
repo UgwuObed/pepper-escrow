@@ -74,7 +74,10 @@ class SampleTransactionSeeder extends Seeder
         ];
 
         foreach ($transactions as $data) {
-            Transaction::create($data);
+            Transaction::firstOrCreate(
+                ['transcode' => $data['transcode']],
+                $data
+            );
         }
     }
 }

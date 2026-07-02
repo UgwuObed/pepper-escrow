@@ -35,6 +35,10 @@ class DemoDataSeeder extends Seeder
 {
     public function run(): void
     {
+        if (Merchant::count() >= 3) {
+            return;
+        }
+
         // ── 1. Super Admin ──
         User::firstOrCreate(
             ['email' => 'admin@pepperescrow.com'],
@@ -239,9 +243,12 @@ class DemoDataSeeder extends Seeder
             $fee = round($amount * $feeRate, 2);
             $net = round($amount - $fee, 2);
 
-            $txn = Transaction::create([
+            $transcode = 'TXN-' . Carbon::now()->subDays($daysAgo)->format('Ymd') . '-' . str_pad((string) $i, 4, '0', STR_PAD_LEFT);
+            $txn = Transaction::firstOrCreate(
+                ['transcode' => $transcode],
+                [
                 'posting_date' => Carbon::now()->subDays($daysAgo),
-                'transcode' => 'TXN-' . Carbon::now()->subDays($daysAgo)->format('Ymd') . '-' . str_pad((string) $i, 4, '0', STR_PAD_LEFT),
+                'transcode' => $transcode,
                 'customer_email' => $customer['email'],
                 'merchant_email' => $merchant->email,
                 'merchantid' => $merchant->id,
@@ -355,10 +362,13 @@ class DemoDataSeeder extends Seeder
                     ]
                 );
 
-                SubscriptionInvoice::create([
+                $invoiceNumber = 'INV-' . strtoupper(Str::random(12));
+                SubscriptionInvoice::firstOrCreate(
+                    ['invoice_number' => $invoiceNumber],
+                    [
                     'merchant_id' => $merchant->id,
                     'subscription_id' => $sub->id,
-                    'invoice_number' => 'INV-' . strtoupper(Str::random(12)),
+                    'invoice_number' => $invoiceNumber,
                     'amount' => $plan->amount,
                     'currency' => $plan->currency,
                     'status' => 'paid',
@@ -383,9 +393,12 @@ class DemoDataSeeder extends Seeder
                 $totalCommission = $batchTxn->sum('commission_amount') ?: $batchTxn->sum('pepperest_fee');
                 $netAmount = $totalAmount - $totalCommission;
 
-                $settlement = Settlement::create([
+                $batchNumber = 'STL-' . Carbon::now()->format('Ymd') . '-' . $merchant->id;
+                $settlement = Settlement::firstOrCreate(
+                    ['batch_number' => $batchNumber],
+                    [
                     'merchant_id' => $merchant->id,
-                    'batch_number' => 'STL-' . Carbon::now()->format('Ymd') . '-' . $merchant->id,
+                    'batch_number' => $batchNumber,
                     'status' => rand(0, 2) === 0 ? 'completed' : 'pending',
                     'total_amount' => $totalAmount,
                     'total_commission' => $totalCommission,
@@ -397,7 +410,9 @@ class DemoDataSeeder extends Seeder
                 ]);
 
                 foreach ($batchTxn as $txnItem) {
-                    SettlementItem::create([
+                    SettlementItem::firstOrCreate(
+                        ['settlement_id' => $settlement->id, 'transaction_id' => $txnItem->id],
+                        [
                         'settlement_id' => $settlement->id,
                         'transaction_id' => $txnItem->id,
                         'transaction_amount' => $txnItem->amount,
