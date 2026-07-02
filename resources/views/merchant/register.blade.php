@@ -1,4 +1,4 @@
-@extends('merchant.layout')
+@extends('merchant.guest_layout')
 @section('title', 'Register')
 @section('content')
 <div class="flex items-center justify-center min-h-screen">
