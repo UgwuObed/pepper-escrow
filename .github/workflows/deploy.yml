@@ -37,10 +37,12 @@ jobs:
           sed -i 's/DB_DATABASE=.*/DB_DATABASE=pepper_escrow_test/' .env
           sed -i 's/DB_USERNAME=.*/DB_USERNAME=root/' .env
           sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=/' .env
-          php artisan key:generate
 
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist
+
+      - name: Generate App Key
+        run: php artisan key:generate
 
       - name: Run Migrations
         run: php artisan migrate --env=testing
