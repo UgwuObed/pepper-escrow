@@ -12,7 +12,7 @@ Route::group([
 
 Route::prefix('merchant')->name('merchant.')->group(function () {
     Route::get('/register', [\App\Http\Controllers\Merchant\AuthController::class, 'showRegisterForm'])->name('register');
-    Route::post('/register', [\App\Http\Controllers\Merchant\AuthController::class, 'register'])->name('register');
+    Route::post('/register', [\App\Http\Controllers\Merchant\AuthController::class, 'register'])->name('register.submit');
     Route::get('/login', [\App\Http\Controllers\Merchant\AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [\App\Http\Controllers\Merchant\AuthController::class, 'login'])->name('login');
     Route::get('/logout', [\App\Http\Controllers\Merchant\AuthController::class, 'logout'])->name('logout');

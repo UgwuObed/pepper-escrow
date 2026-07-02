@@ -12,7 +12,7 @@
                 @endforeach
             </div>
         @endif
-        <form method="POST" action="{{ route('merchant.register') }}">
+        <form method="POST" action="{{ route('merchant.register.submit') }}">
             @csrf
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2" for="business_name">Business Name</label>

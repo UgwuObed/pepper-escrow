@@ -22,8 +22,6 @@ until php -r "
 done
 echo "MySQL is ready."
 
-php artisan key:generate --force
-
 php artisan migrate --force
 
 if [ "${APP_SEED:-false}" = "true" ]; then
@@ -31,7 +29,7 @@ if [ "${APP_SEED:-false}" = "true" ]; then
 fi
 
 php artisan config:cache
-php artisan route:cache
+php artisan route:cache || true
 php artisan view:cache
 
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/laravel.conf
