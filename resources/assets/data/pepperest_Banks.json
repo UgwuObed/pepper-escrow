@@ -1,0 +1,967 @@
+[
+    {
+    
+    "Banks": [
+        {
+            "ID": "1",
+            "PEPPERESTCODE": "01",
+            "BANKNAME": "Sterling Bank",
+            "STERLINGCODE":"000001",
+            "FLUTTERWAVECODE": "232"
+        },
+        {
+            "ID": "2",
+            "PEPPERESTCODE": "02",
+            "BANKNAME": "Keystone Bank",
+            "STERLINGCODE": "000002",
+            "FLUTTERWAVECODE": "082"
+        },
+        {
+            "ID": "3",
+            "PEPPERESTCODE": "03",
+            "BANKNAME": "First City Monument Bank",
+            "STERLINGCODE": "000003",
+            "FLUTTERWAVECODE": "214"
+        },
+        {
+            "ID": "4",
+            "PEPPERESTCODE": "04",
+            "BANKNAME": "United Bank for Africa",
+            "STERLINGCODE": "000004",
+            "FLUTTERWAVECODE": "033"
+        },
+        {
+            "ID": "5",
+            "PEPPERESTCODE": "05",
+            "BANKNAME": "Diamond Bank",
+            "STERLINGCODE":"000005",
+            "FLUTTERWAVECODE": "063"
+        },
+        {
+            "ID": "6",
+            "PEPPERESTCODE": "06",
+            "BANKNAME": "JAIZ Bank",
+            "STERLINGCODE": "000006",
+            "FLUTTERWAVECODE": "301"
+        },
+        {
+            "ID": "7",
+            "PEPPERESTCODE": "07",
+            "BANKNAME": "Fidelity Bank",
+            "STERLINGCODE": "000007",
+            "FLUTTERWAVECODE": "070"
+        },
+        {
+            "ID": "8",
+            "PEPPERESTCODE": "08",
+            "BANKNAME": "Skye Bank",
+            "STERLINGCODE": "000008",
+            "FLUTTERWAVECODE": "076"
+        },
+        {
+            "ID": "9",
+            "PEPPERESTCODE": "09",
+            "BANKNAME": "Citi Bank",
+            "STERLINGCODE": "000009",
+            "FLUTTERWAVECODE": "023"
+        },
+        {
+            "ID": "10",
+            "PEPPERESTCODE": "10",
+            "BANKNAME": "Ecobank Bank",
+            "STERLINGCODE": "000010",
+            "FLUTTERWAVECODE":"050"
+        },
+        {
+            "ID": "11",
+            "PEPPERESTCODE": "11",
+            "BANKNAME": "Unity Bank",
+            "STERLINGCODE": "000011",
+            "FLUTTERWAVECODE": "215"
+        },
+        {
+            "ID": "12",
+            "PEPPERESTCODE": "12",
+            "BANKNAME": "StanbicIBTC Bank",
+            "STERLINGCODE": "000012",
+            "FLUTTERWAVECODE": "221"
+        },
+        {
+            "ID": "13",
+            "PEPPERESTCODE": "13",
+            "BANKNAME": "GTBank Plc",
+            "STERLINGCODE": "000013",
+            "FLUTTERWAVECODE": "058"
+        },
+        {
+            "ID": "14",
+            "PEPPERESTCODE": "14",
+            "BANKNAME": "Access Bank",
+            "STERLINGCODE": "000014",
+            "FLUTTERWAVECODE": "044"
+        },
+        {
+            "ID": "15",
+            "PEPPERESTCODE": "15",
+            "BANKNAME": "ZENITH BANK PLC",
+            "STERLINGCODE": "000015",
+            "FLUTTERWAVECODE": "057"
+        },
+        {
+            "ID": "16",
+            "PEPPERESTCODE": "16",
+            "BANKNAME": "First Bank of Nigeria",
+            "STERLINGCODE": "000016",
+            "FLUTTERWAVECODE": "011"
+        },
+        {
+            "ID": "17",
+            "PEPPERESTCODE": "17",
+            "BANKNAME": "Wema Bank",
+            "STERLINGCODE": "000017",
+            "FLUTTERWAVECODE": "035"
+        },
+        {
+            "ID": "18",
+            "PEPPERESTCODE": "18",
+            "BANKNAME": "Union Bank",
+            "STERLINGCODE": "000018",
+            "FLUTTERWAVECODE": "032"
+        },
+        {
+            "ID": "19",
+            "PEPPERESTCODE": "19",
+            "BANKNAME": "Enterprise Bank",
+            "STERLINGCODE": "000019",
+            "FLUTTERWAVECODE": "084"
+        },
+        {
+            "ID": "20",
+            "PEPPERESTCODE": "20",
+            "BANKNAME": "Heritage",
+            "STERLINGCODE": "000020",
+            "FLUTTERWAVECODE": "030"
+        },
+        {
+            "ID": "21",
+            "PEPPERESTCODE": "21",
+            "BANKNAME": "StandardChartered",
+            "STERLINGCODE": "000021",
+            "FLUTTERWAVECODE": "068"
+        },
+        {
+            "ID": "22",
+            "PEPPERESTCODE": "22",
+            "BANKNAME": "SUNTRUST BANK",
+            "STERLINGCODE": "000022",
+            "FLUTTERWAVECODE": "100"
+        },
+        {
+            "ID": "23",
+            "PEPPERESTCODE": "23",
+            "BANKNAME": "Providus Bank ",
+            "STERLINGCODE": "000023",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "24",
+            "PEPPERESTCODE": "24",
+            "BANKNAME": "Rand Merchant Bank",
+            "STERLINGCODE": "000024",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "25",
+            "PEPPERESTCODE": "25",
+            "BANKNAME": "Coronation",
+            "STERLINGCODE": "060001",
+            "FLUTTERWAVECODE": "559"
+        },
+        {
+            "ID": "26",
+            "PEPPERESTCODE": "26",
+            "BANKNAME": "FBNQuest MERCHANT BANK",
+            "STERLINGCODE": "060002",
+            "FLUTTERWAVECODE": "084"
+        },
+        {
+            "ID": "27",
+            "PEPPERESTCODE": "27",
+            "BANKNAME": "NOVA MB",
+            "STERLINGCODE": "060003",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "28",
+            "PEPPERESTCODE": "28",
+            "BANKNAME": "NPF MicroFinance Bank",
+            "STERLINGCODE": "070001",
+            "FLUTTERWAVECODE": "552"
+        },
+        {
+            "ID": "29",
+            "PEPPERESTCODE": "29",
+            "BANKNAME": "Fortis Microfinance Bank",
+            "STERLINGCODE":"070002",
+            "FLUTTERWAVECODE": "501"
+        },
+        {
+            "ID": "30",
+            "PEPPERESTCODE": "30",
+            "BANKNAME": "Covenant MFB",
+            "STERLINGCODE": "070006",
+            "FLUTTERWAVECODE": "551"
+        },
+        {
+            "ID": "31",
+            "PEPPERESTCODE": "31",
+            "BANKNAME": "Omoluabi Mortgage Bank Plc",
+            "STERLINGCODE": "070007",
+            "FLUTTERWAVECODE": "990"
+        },
+        {
+            "ID": "32",
+            "PEPPERESTCODE": "32",
+            "BANKNAME": "Page MFBank",
+            "STERLINGCODE": "070008",
+            "FLUTTERWAVECODE": "560"
+        },
+        {
+            "ID": "33",
+            "PEPPERESTCODE": "33",
+            "BANKNAME": "GATEWAY MORTGAGE BANK",
+            "STERLINGCODE": "070009",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "34",
+            "PEPPERESTCODE": "34",
+            "BANKNAME": "ABBEY MORTGAGE BANK",
+            "STERLINGCODE": "070010",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "35",
+            "PEPPERESTCODE": "35",
+            "BANKNAME": "Refuge Mortgage Bank",
+            "STERLINGCODE": "070011",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "36",
+            "PEPPERESTCODE": "36",
+            "BANKNAME": "LBIC Mortgage Bank",
+            "STERLINGCODE": "070012",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "37",
+            "PEPPERESTCODE": "37",
+            "BANKNAME": "PLATINUM MORTGAGE BANK",
+            "STERLINGCODE": "070013",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "38",
+            "PEPPERESTCODE": "38",
+            "BANKNAME": "First Generation Mortgage Bank",
+            "STERLINGCODE": "070014",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "39",
+            "PEPPERESTCODE": "39",
+            "BANKNAME": "Brent Mortgage Bank",
+            "STERLINGCODE": "070015",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "40",
+            "PEPPERESTCODE": "40",
+            "BANKNAME": "Infinity trust  Mortgage Bank",
+            "STERLINGCODE": "070016",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "41",
+            "PEPPERESTCODE": "41",
+            "BANKNAME": "ASOSavings",
+            "STERLINGCODE": "090001",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "42",
+            "PEPPERESTCODE": "42",
+            "BANKNAME": "JubileeLife",
+            "STERLINGCODE": "090003",
+            "FLUTTERWAVECODE": "402"
+        },
+        {
+            "ID": "43",
+            "PEPPERESTCODE": "43",
+            "BANKNAME": "Parralex",
+            "STERLINGCODE": "090004",
+            "FLUTTERWAVECODE": "526"
+        },
+        {
+            "ID": "44",
+            "PEPPERESTCODE": "44",
+            "BANKNAME": "Trustbond",
+            "STERLINGCODE": "090005",
+            "FLUTTERWAVECODE": "523"
+        },
+        {
+            "ID": "45",
+            "PEPPERESTCODE": "45",
+            "BANKNAME": "SafeTrust",
+            "STERLINGCODE": "090006",
+            "FLUTTERWAVECODE": "403"
+        },
+        {
+            "ID": "46",
+            "PEPPERESTCODE": "46",
+            "BANKNAME": "Ekondo MFB",
+            "STERLINGCODE": "090097",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "47",
+            "PEPPERESTCODE": "47",
+            "BANKNAME": "FBN Morgages Limited",
+            "STERLINGCODE": "090107",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "48",
+            "PEPPERESTCODE": "48",
+            "BANKNAME": "New Prudential Bank",
+            "STERLINGCODE": "090108",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "49",
+            "PEPPERESTCODE": "49",
+            "BANKNAME": "VFD MFB",
+            "STERLINGCODE": "090110",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "50",
+            "PEPPERESTCODE": "50",
+            "BANKNAME": "FinaTrust Microfinance Bank",
+            "STERLINGCODE": "090111",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "51",
+            "PEPPERESTCODE": "51",
+            "BANKNAME": "Seed Capital Microfinance Bank",
+            "STERLINGCODE": "090112",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "52",
+            "PEPPERESTCODE": "52",
+            "BANKNAME": "EMPIRE MFB",
+            "STERLINGCODE": "090114",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "53",
+            "PEPPERESTCODE": "53",
+            "BANKNAME": "TCF",
+            "STERLINGCODE": "090115",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "54",
+            "PEPPERESTCODE": "54",
+            "BANKNAME": "AMML MFB",
+            "STERLINGCODE": "090116",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "55",
+            "PEPPERESTCODE": "55",
+            "BANKNAME": "Boctrust Microfinance Bank",
+            "STERLINGCODE": "090117",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "56",
+            "PEPPERESTCODE": "56",
+            "BANKNAME": "IBILE Microfinance Bank",
+            "STERLINGCODE": "090118",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "57",
+            "PEPPERESTCODE": "57",
+            "BANKNAME": "OHAFIA MFB",
+            "STERLINGCODE": "090119",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "58",
+            "PEPPERESTCODE": "58",
+            "BANKNAME": "WETLAND MFB",
+            "STERLINGCODE":"090120",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "59",
+            "PEPPERESTCODE": "59",
+            "BANKNAME": "HASAL MFB",
+            "STERLINGCODE": "090121",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "60",
+            "PEPPERESTCODE": "60",
+            "BANKNAME": "GOWANS MFB",
+            "STERLINGCODE": "090122",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "61",
+            "PEPPERESTCODE": "61",
+            "BANKNAME": "Verite Microfinance Bank",
+            "STERLINGCODE": "090123",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "62",
+            "PEPPERESTCODE": "62",
+            "BANKNAME": "XSLNCE Microfinance Bank",
+            "STERLINGCODE": "090124",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "63",
+            "PEPPERESTCODE": "63",
+            "BANKNAME": "REGENT MFB",
+            "STERLINGCODE": "090125",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "64",
+            "PEPPERESTCODE": "64",
+            "BANKNAME": "FidFund MFB",
+            "STERLINGCODE": "090126",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "65",
+            "PEPPERESTCODE": "65",
+            "BANKNAME": "BC Kash MFB",
+            "STERLINGCODE": "090127",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "66",
+            "PEPPERESTCODE": "66",
+            "BANKNAME": "Ndiorah MFB",
+            "STERLINGCODE": "090128",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "67",
+            "PEPPERESTCODE": "67",
+            "BANKNAME": "MONEYTRUST MFB",
+            "STERLINGCODE": "090129",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "68",
+            "PEPPERESTCODE": "68",
+            "BANKNAME": "CONSUMER  MFB",
+            "STERLINGCODE": "090130",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "69",
+            "PEPPERESTCODE": "69",
+            "BANKNAME": "ALLWORKERS MFB",
+            "STERLINGCODE": "090131",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "70",
+            "PEPPERESTCODE": "70",
+            "BANKNAME": "RICHWAY MFB",
+            "STERLINGCODE": "090132",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "71",
+            "PEPPERESTCODE": "71",
+            "BANKNAME": "AL-BARKAH MFB",
+            "STERLINGCODE": "090133",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "72",
+            "PEPPERESTCODE": "72",
+            "BANKNAME": "ACCION MFB",
+            "STERLINGCODE": "090134",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "73",
+            "PEPPERESTCODE": "73",
+            "BANKNAME": "Personal Trust Microfinance Bank",
+            "STERLINGCODE": "090135",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "74",
+            "PEPPERESTCODE": "74",
+            "BANKNAME": "Microcred Microfinance Bank",
+            "STERLINGCODE": "090136",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "75",
+            "PEPPERESTCODE": "75",
+            "BANKNAME": "Pecan Trust Microfinance Bank",
+            "STERLINGCODE": "090137",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "76",
+            "PEPPERESTCODE": "76",
+            "BANKNAME": "Royal Exchange Microfinance Bank",
+            "STERLINGCODE": "090138",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "77",
+            "PEPPERESTCODE": "77",
+            "BANKNAME": "Visa Microfinance Bank",
+            "STERLINGCODE": "090139",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "78",
+            "PEPPERESTCODE": "78",
+            "BANKNAME": "Sagamu Microfinance Bank",
+            "STERLINGCODE": "090140",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "79",
+            "PEPPERESTCODE": "79",
+            "BANKNAME": "Chikum Microfinance Bank",
+            "STERLINGCODE": "090141",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "80",
+            "PEPPERESTCODE": "80",
+            "BANKNAME": "Yes MFB",
+            "STERLINGCODE": "090142",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "81",
+            "PEPPERESTCODE": "81",
+            "BANKNAME": "APEKS Microfinance Bank",
+            "STERLINGCODE": "090143",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "82",
+            "PEPPERESTCODE": "82",
+            "BANKNAME": "CIT Microfinance Bank",
+            "STERLINGCODE": "090144",
+            "FLUTTERWAVECODE": ""
+
+        },
+        {
+            "ID": "83",
+            "PEPPERESTCODE": "83",
+            "BANKNAME": "Full range MFB",
+            "STERLINGCODE": "090145",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "84",
+            "PEPPERESTCODE": "84",
+            "BANKNAME": "Trident Microfinance Bank",
+            "STERLINGCODE": "090146",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "85",
+            "PEPPERESTCODE": "85",
+            "BANKNAME": "Hackman Microfinance Bank",
+            "STERLINGCODE": "090147",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "86",
+            "PEPPERESTCODE": "86",
+            "BANKNAME": "Bowen MFB",
+            "STERLINGCODE": "090148",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "87",
+            "PEPPERESTCODE": "87",
+            "BANKNAME": "IRL Microfinance Bank",
+            "STERLINGCODE": "090149",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "88",
+            "PEPPERESTCODE": "88",
+            "BANKNAME": "Virtue MFB",
+            "STERLINGCODE": "090150",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "89",
+            "PEPPERESTCODE": "89",
+            "BANKNAME": "Mutual Trust Microfinance Bank",
+            "STERLINGCODE": "090151",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "90",
+            "PEPPERESTCODE": "90",
+            "BANKNAME": "Nargata MFB",
+            "STERLINGCODE": "090152",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "91",
+            "PEPPERESTCODE": "91",
+            "BANKNAME": "FFS Microfinance Bank",
+            "STERLINGCODE": "090153",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "92",
+            "PEPPERESTCODE": "92",
+            "BANKNAME": "CEMCS MFB",
+            "STERLINGCODE": "090154",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "93",
+            "PEPPERESTCODE": "93",
+            "BANKNAME": "Lafayette Microfinance Bank",
+            "STERLINGCODE": "090155",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "94",
+            "PEPPERESTCODE": "94",
+            "BANKNAME": "e-BARCs MFB",
+            "STERLINGCODE": "090156",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "95",
+            "PEPPERESTCODE": "95",
+            "BANKNAME": "Infinity MFB",
+            "STERLINGCODE": "090157",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "96",
+            "PEPPERESTCODE": "96",
+            "BANKNAME": "FUTO MFB",
+            "STERLINGCODE": "090158",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "97",
+            "PEPPERESTCODE": "97",
+            "BANKNAME": "Credit Afrique MFB",
+            "STERLINGCODE": "090159",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "98",
+            "PEPPERESTCODE": "98",
+            "BANKNAME": "Addosser MFBB",
+            "STERLINGCODE": "090160",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "99",
+            "PEPPERESTCODE": "99",
+            "BANKNAME": "Okpoga MFB",
+            "STERLINGCODE": "090161",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "100",
+            "PEPPERESTCODE": "100",
+            "BANKNAME": "First Multiple MFB",
+            "STERLINGCODE": "090163",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "101",
+            "PEPPERESTCODE": "102",
+            "BANKNAME": "First Royal Microfinance Bank",
+            "STERLINGCODE": "090164",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "102",
+            "PEPPERESTCODE": "103",
+            "BANKNAME": "Petra Microfinance Bank",
+            "STERLINGCODE": "090165",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "103",
+            "PEPPERESTCODE": "104",
+            "BANKNAME": "FET",
+            "STERLINGCODE": "100001",
+            "FLUTTERWAVECODE": "314"
+        },
+        {
+            "ID": "104",
+            "PEPPERESTCODE": "105",
+            "BANKNAME": "Paga",
+            "STERLINGCODE": "100002",
+            "FLUTTERWAVECODE": "327"
+        },
+        {
+            "ID": "105",
+            "PEPPERESTCODE": "106",
+            "BANKNAME": "Parkway-ReadyCash",
+            "STERLINGCODE": "100003",
+            "FLUTTERWAVECODE": "311"
+        },
+        {
+            "ID": "106",
+            "PEPPERESTCODE": "107",
+            "BANKNAME": "Paycom",
+            "STERLINGCODE": "100004",
+            "FLUTTERWAVECODE": "305"
+        },
+        {
+            "ID": "107",
+            "PEPPERESTCODE": "108",
+            "BANKNAME": "Cellulant",
+            "STERLINGCODE": "100005",
+            "FLUTTERWAVECODE": "317"
+        },
+        {
+            "ID": "108",
+            "PEPPERESTCODE": "109",
+            "BANKNAME": "eTranzact",
+            "STERLINGCODE": "100006",
+            "FLUTTERWAVECODE": "306"
+        },
+        {
+            "ID": "109",
+            "PEPPERESTCODE": "110",
+            "BANKNAME": "StanbicMobileMoney",
+            "STERLINGCODE": "100007",
+            "FLUTTERWAVECODE": "304"
+        },
+        {
+            "ID": "110",
+            "PEPPERESTCODE": "111",
+            "BANKNAME": "Ecobank Xpress Account",
+            "STERLINGCODE": "100008",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "111",
+            "PEPPERESTCODE": "112",
+            "BANKNAME": "GTMobile",
+            "STERLINGCODE": "100009",
+            "FLUTTERWAVECODE": "315"
+        },
+        {
+            "ID": "112",
+            "PEPPERESTCODE": "113",
+            "BANKNAME": "TeasyMobile",
+            "STERLINGCODE": "100010",
+            "FLUTTERWAVECODE": "319"
+        },
+        {
+            "ID": "113",
+            "PEPPERESTCODE": "114",
+            "BANKNAME": "Mkudi",
+            "STERLINGCODE": "100011",
+            "FLUTTERWAVECODE": "313"
+        },
+        {
+            "ID": "114",
+            "PEPPERESTCODE": "115",
+            "BANKNAME": "VTNetworks",
+            "STERLINGCODE": "100012",
+            "FLUTTERWAVECODE": "320"
+        },
+        {
+            "ID": "115",
+            "PEPPERESTCODE": "116",
+            "BANKNAME": "AccessMobile",
+            "STERLINGCODE": "100013",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "116",
+            "PEPPERESTCODE": "117",
+            "BANKNAME": "FBNMobile",
+            "STERLINGCODE": "100014",
+            "FLUTTERWAVECODE": "309"
+        },
+        {
+            "ID": "117",
+            "PEPPERESTCODE": "118",
+            "BANKNAME": "Kegow",
+            "STERLINGCODE": "100015",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "118",
+            "PEPPERESTCODE": "119",
+            "BANKNAME": "FortisMobile",
+            "STERLINGCODE": "100016",
+            "FLUTTERWAVECODE": "308"
+        },
+        {
+            "ID": "119",
+            "PEPPERESTCODE": "120",
+            "BANKNAME": "Hedonmark",
+            "STERLINGCODE": "100017",
+            "FLUTTERWAVECODE": "324"
+        },
+        {
+            "ID": "120",
+            "PEPPERESTCODE": "121",
+            "BANKNAME": "ZenithMobile",
+            "STERLINGCODE": "100018",
+            "FLUTTERWAVECODE": "322"
+        },
+        {
+            "ID": "121",
+            "PEPPERESTCODE": "122",
+            "BANKNAME": "Fidelity Mobile",
+            "STERLINGCODE": "100019",
+            "FLUTTERWAVECODE": "318"
+        },
+        {
+            "ID": "122",
+            "PEPPERESTCODE": "123",
+            "BANKNAME": "MoneyBox",
+            "STERLINGCODE": "100020",
+            "FLUTTERWAVECODE": "325"
+        },
+        {
+            "ID": "123",
+            "PEPPERESTCODE": "124",
+            "BANKNAME": "Eartholeum",
+            "STERLINGCODE": "100021",
+            "FLUTTERWAVECODE": "302"
+        },
+        {
+            "ID": "124",
+            "PEPPERESTCODE": "125",
+            "BANKNAME": "Sterling Mobile",
+            "STERLINGCODE": "100022",
+            "FLUTTERWAVECODE": "326"
+        },
+        {
+            "ID": "125",
+            "PEPPERESTCODE": "126",
+            "BANKNAME": "TagPay",
+            "STERLINGCODE": "100023",
+            "FLUTTERWAVECODE": "328"
+        },
+        {
+            "ID": "126",
+            "PEPPERESTCODE": "127",
+            "BANKNAME": "Imperial Homes Mortgage Bank",
+            "STERLINGCODE": "100024",
+            "FLUTTERWAVECODE": "415"
+        },
+        {
+            "ID": "127",
+            "PEPPERESTCODE": "128",
+            "BANKNAME": "KongaPay",
+            "STERLINGCODE": "100025",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "128",
+            "PEPPERESTCODE": "129",
+            "BANKNAME": "ONE FINANCE",
+            "STERLINGCODE": "100026",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "129",
+            "PEPPERESTCODE": "130",
+            "BANKNAME": "Intellifin",
+            "STERLINGCODE": "100027",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "130",
+            "PEPPERESTCODE": "131",
+            "BANKNAME": "AG MORTGAGE BANK PLC",
+            "STERLINGCODE": "100028",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "131",
+            "PEPPERESTCODE": "132",
+            "BANKNAME": "Innovectives Kesh",
+            "STERLINGCODE": "100029",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "132",
+            "PEPPERESTCODE": "133",
+            "BANKNAME": "FCMB MOBILE",
+            "STERLINGCODE": "100031",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "133",
+            "PEPPERESTCODE": "134",
+            "BANKNAME": "Contec Global",
+            "STERLINGCODE": "100032",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "134",
+            "PEPPERESTCODE": "135",
+            "BANKNAME": "PayAttitude Online",
+            "STERLINGCODE": "110001",
+            "FLUTTERWAVECODE": "329"
+        },
+        {
+            "ID": "135",
+            "PEPPERESTCODE": "136",
+            "BANKNAME": "Flutterwave Technology solutions Limited",
+            "STERLINGCODE": "110002",
+            "FLUTTERWAVECODE": ""
+        },
+        {
+            "ID": "136",
+            "PEPPERESTCODE": "137",
+            "BANKNAME": "FSDH",
+            "STERLINGCODE": "400001",
+            "FLUTTERWAVECODE": "601"
+        },
+        {
+            "ID": "137",
+            "PEPPERESTCODE": "138",
+            "BANKNAME": "NIP Virtual Bank",
+            "STERLINGCODE": "999999",
+            "FLUTTERWAVECODE": "999"
+        }
+    ]
+}
+]

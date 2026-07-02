@@ -1,0 +1,1321 @@
+{
+  "info": {
+    "_postman_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "name": "Pepper Escrow Internal API",
+    "description": "Complete API collection for the Pepper Escrow platform — internal use by platform operators and developers.\n\n## Base URL\nReplace `{{base_url}}` with your server URL (e.g. `http://localhost:8000`).\n\n## Authentication\n- **API Endpoints**: Pass the API token as a Bearer token: `Authorization: Bearer {{api_key}}`\n- **Admin Web Endpoints**: Session-based — call `POST /login` first with email + password\n- **Merchant Web Endpoints**: Session-based — call `POST /merchant/login` first\n\n## Variables\nSet these in the Postman environment:\n- `base_url` — Server URL (e.g. `http://localhost:8000`)\n- `api_key` — API token from merchant dashboard\n- `email` / `password` — Admin login (seeded: admin@pepperescrow.com / password)\n- `merchant_email` / `merchant_password` — Merchant login\n- `appid` — App ID from API token\n- `referenceid` — Transaction reference for testing\n\n## Gateway Webhooks (Public — no auth)\nThese endpoints are called by payment gateways (Paystack, Flutterwave, Stripe, SeerBit). They do NOT require an API key.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000", "type": "string" },
+    { "key": "api_key", "value": "YOUR_API_KEY_HERE", "type": "string" },
+    { "key": "email", "value": "admin@pepperescrow.com", "type": "string" },
+    { "key": "password", "value": "password", "type": "string" },
+    { "key": "merchant_email", "value": "merchant@acme.com", "type": "string" },
+    { "key": "merchant_password", "value": "password123", "type": "string" },
+    { "key": "appid", "value": "1", "type": "string" },
+    { "key": "referenceid", "value": "REF-UNIQUE-001", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Escrow Core",
+      "item": [
+        {
+          "name": "Transactions",
+          "item": [
+            {
+              "name": "Create Transaction (Record Only)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+                  { "key": "Content-Type", "value": "application/json", "type": "text" }
+                ],
+                "url": { "raw": "{{base_url}}/api/escrow/Transaction/create", "host": ["{{base_url}}"], "path": ["api", "escrow", "Transaction", "create"] },
+                "description": "Creates an escrow transaction record without generating a payment link.\n\nSupports `transaction_type` param to specify a type slug (e.g. \"escrow\", \"deposit\", \"milestone\"). If omitted, defaults to the merchant's first active type.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"appid\": \"{{appid}}\",\n  \"referenceid\": \"{{referenceid}}\",\n  \"user_email\": \"user@example.com\",\n  \"amount\": \"250000\",\n  \"country\": \"NG\",\n  \"currency\": \"NGN\",\n  \"customer_email\": \"customer@example.com\",\n  \"merchant_email\": \"{{merchant_email}}\",\n  \"description\": \"Payment for services\",\n  \"customer_account_number\": \"0123456789\",\n  \"merchant_account_number\": \"9876543210\",\n  \"customer_bank_code\": \"011\",\n  \"merchant_bank_code\": \"011\",\n  \"customer_name\": \"John Doe\",\n  \"merchant_name\": \"Jane Smith\",\n  \"customer_phone\": \"08012345678\",\n  \"merchant_phone\": \"08087654321\",\n  \"peppfees\": \"3750\",\n  \"startdate\": \"2026-07-01\",\n  \"enddate\": \"2026-07-30\",\n  \"transfer_reference_id\": null,\n  \"transaction_type\": \"escrow\",\n  \"metadata\": {\n    \"order_id\": \"ORD-001\",\n    \"notes\": \"Rush delivery\"\n  }\n}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Create Card Transaction (With Payment Link)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+                  { "key": "Content-Type", "value": "application/json", "type": "text" }
+                ],
+                "url": { "raw": "{{base_url}}/api/escrow/Transaction/create_card", "host": ["{{base_url}}"], "path": ["api", "escrow", "Transaction", "create_card"] },
+                "description": "Creates an escrow transaction and generates a payment link via the configured gateway. Returns `payment_url` in the response.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"appid\": \"{{appid}}\",\n  \"referenceid\": \"REF-CARD-001\",\n  \"user_email\": \"user@example.com\",\n  \"amount\": \"150000\",\n  \"country\": \"NG\",\n  \"currency\": \"NGN\",\n  \"customer_email\": \"customer@example.com\",\n  \"merchant_email\": \"{{merchant_email}}\",\n  \"description\": \"Escrow with card payment\",\n  \"merchant_account_number\": \"9876543210\",\n  \"merchant_bank_code\": \"011\",\n  \"customer_name\": \"John Doe\",\n  \"merchant_name\": \"Jane Smith\",\n  \"customer_phone\": \"08012345678\",\n  \"merchant_phone\": \"08087654321\",\n  \"peppfees\": \"2250\",\n  \"startdate\": \"2026-07-01\",\n  \"enddate\": \"2026-07-30\",\n  \"callback_url\": \"https://yourapp.com/callback\",\n  \"transfer_reference_id\": null,\n  \"transaction_type\": \"escrow\",\n  \"metadata\": {\n    \"order_id\": \"ORD-002\"\n  }\n}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Payment Link",
+              "request": {
+                "method": "GET",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+                "url": {
+                  "raw": "{{base_url}}/api/escrow/Transaction/getPaymentLink?appid={{appid}}&referenceid=REF-CARD-001&callback_url=https://yourapp.com/callback",
+                  "host": ["{{base_url}}"], "path": ["api", "escrow", "Transaction", "getPaymentLink"],
+                  "query": [
+                    { "key": "appid", "value": "{{appid}}" },
+                    { "key": "referenceid", "value": "REF-CARD-001" },
+                    { "key": "callback_url", "value": "https://yourapp.com/callback" }
+                  ]
+                },
+                "description": "Generate or re-generate a payment link for an existing transaction."
+              },
+              "response": []
+            },
+            {
+              "name": "Stop Transaction",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+                  { "key": "Content-Type", "value": "application/json", "type": "text" }
+                ],
+                "url": { "raw": "{{base_url}}/api/escrow/Transaction/stop", "host": ["{{base_url}}"], "path": ["api", "escrow", "Transaction", "stop"] },
+                "description": "Stops/flags a transaction. Prevents release until resolved.",
+                "body": { "mode": "raw", "raw": "{\n  \"appid\": \"{{appid}}\",\n  \"referenceid\": \"{{referenceid}}\",\n  \"user_email\": \"user@example.com\",\n  \"reasons\": \"Goods not delivered as described\"\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Release Transaction",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+                  { "key": "Content-Type", "value": "application/json", "type": "text" }
+                ],
+                "url": { "raw": "{{base_url}}/api/escrow/Transaction/release", "host": ["{{base_url}}"], "path": ["api", "escrow", "Transaction", "release"] },
+                "description": "Releases funds to the merchant.",
+                "body": { "mode": "raw", "raw": "{\n  \"appid\": \"{{appid}}\",\n  \"referenceid\": \"{{referenceid}}\",\n  \"user_email\": \"user@example.com\",\n  \"reasons\": \"Goods delivered and accepted\"\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Request Extension",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+                  { "key": "Content-Type", "value": "application/json", "type": "text" }
+                ],
+                "url": { "raw": "{{base_url}}/api/escrow/Transaction/reqExtension", "host": ["{{base_url}}"], "path": ["api", "escrow", "Transaction", "reqExtension"] },
+                "description": "Request a fulfillment date extension.",
+                "body": { "mode": "raw", "raw": "{\n  \"appid\": \"{{appid}}\",\n  \"referenceid\": \"{{referenceid}}\",\n  \"user_email\": \"user@example.com\",\n  \"new_date\": \"2026-07-15\",\n  \"reasons\": \"Need more time to deliver\"\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Respond to Extension (Accept / Reject)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+                  { "key": "Content-Type", "value": "application/json", "type": "text" }
+                ],
+                "url": { "raw": "{{base_url}}/api/escrow/Transaction/extend", "host": ["{{base_url}}"], "path": ["api", "escrow", "Transaction", "extend"] },
+                "description": "Accept or reject a previously requested extension. Set action to \"accept\" or \"refuse\".",
+                "body": { "mode": "raw", "raw": "{\n  \"appid\": \"{{appid}}\",\n  \"referenceid\": \"{{referenceid}}\",\n  \"user_email\": \"user@example.com\",\n  \"action\": \"accept\",\n  \"reasons\": \"Extension approved\"\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Request Refund",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+                  { "key": "Content-Type", "value": "application/json", "type": "text" }
+                ],
+                "url": { "raw": "{{base_url}}/api/escrow/Transaction/reqRefund", "host": ["{{base_url}}"], "path": ["api", "escrow", "Transaction", "reqRefund"] },
+                "body": { "mode": "raw", "raw": "{\n  \"appid\": \"{{appid}}\",\n  \"referenceid\": \"{{referenceid}}\",\n  \"user_email\": \"user@example.com\",\n  \"reasons\": \"Customer requests cancellation\"\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Approve / Reject Refund",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+                  { "key": "Content-Type", "value": "application/json", "type": "text" }
+                ],
+                "url": { "raw": "{{base_url}}/api/escrow/Transaction/refund", "host": ["{{base_url}}"], "path": ["api", "escrow", "Transaction", "refund"] },
+                "description": "Approve or reject a refund request. Set action to \"accept\" to process via gateway or \"refuse\" to reject.",
+                "body": { "mode": "raw", "raw": "{\n  \"appid\": \"{{appid}}\",\n  \"referenceid\": \"{{referenceid}}\",\n  \"user_email\": \"user@example.com\",\n  \"action\": \"accept\",\n  \"reasons\": \"Refund approved per customer request\"\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "List App Transactions by Status",
+              "request": {
+                "method": "GET",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+                "url": {
+                  "raw": "{{base_url}}/api/escrow/Transaction/AppTranx?appid={{appid}}&action=Open",
+                  "host": ["{{base_url}}"], "path": ["api", "escrow", "Transaction", "AppTranx"],
+                  "query": [
+                    { "key": "appid", "value": "{{appid}}" },
+                    { "key": "action", "value": "Open" }
+                  ]
+                },
+                "description": "List transactions filtered by status. Values: Open, Pending, PaymentPending, Flagged, Fulfilled, Released, Closed."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Transaction by Reference",
+              "request": {
+                "method": "GET",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+                "url": {
+                  "raw": "{{base_url}}/api/escrow/Transaction/AppTranx/ByRef?appid={{appid}}&referenceid={{referenceid}}&user_email=user@example.com",
+                  "host": ["{{base_url}}"], "path": ["api", "escrow", "Transaction", "AppTranx", "ByRef"],
+                  "query": [
+                    { "key": "appid", "value": "{{appid}}" },
+                    { "key": "referenceid", "value": "{{referenceid}}" },
+                    { "key": "user_email", "value": "user@example.com" }
+                  ]
+                },
+                "description": "Get a single transaction by its reference ID."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Disputes",
+          "item": [
+            {
+              "name": "Report Dispute",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/api/escrow/Dispute/reportDispute", "host": ["{{base_url}}"], "path": ["api", "escrow", "Dispute", "reportDispute"] },
+                "description": "Report a new dispute. Supports file upload (multipart/form-data).",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "appid", "value": "{{appid}}", "type": "text" },
+                    { "key": "dispute_referenceid", "value": "DSP-001", "type": "text" },
+                    { "key": "referenceid", "value": "{{referenceid}}", "type": "text" },
+                    { "key": "dispute_category", "value": "product_not_delivered", "type": "text" },
+                    { "key": "dispute_description", "value": "Customer did not receive the item", "type": "text" },
+                    { "key": "dispute_files", "type": "file", "src": "" }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Dispute",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+                  { "key": "Content-Type", "value": "application/json", "type": "text" }
+                ],
+                "url": { "raw": "{{base_url}}/api/escrow/Dispute/updateDispute", "host": ["{{base_url}}"], "path": ["api", "escrow", "Dispute", "updateDispute"] },
+                "body": { "mode": "raw", "raw": "{\n  \"appid\": \"{{appid}}\",\n  \"dispute_referenceid\": \"DSP-001\",\n  \"referenceid\": \"{{referenceid}}\",\n  \"dispute_category\": \"quality_issue\",\n  \"dispute_description\": \"Item received but defective\"\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Resolve Dispute",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+                  { "key": "Content-Type", "value": "application/json", "type": "text" }
+                ],
+                "url": { "raw": "{{base_url}}/api/escrow/Dispute/resolveDispute", "host": ["{{base_url}}"], "path": ["api", "escrow", "Dispute", "resolveDispute"] },
+                "body": { "mode": "raw", "raw": "{\n  \"appid\": \"{{appid}}\",\n  \"dispute_referenceid\": \"DSP-001\",\n  \"referenceid\": \"{{referenceid}}\",\n  \"final_resolution\": \"Refund issued to customer\",\n  \"resolution_date\": \"2026-07-15\"\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Report Dispute Hearing",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+                  { "key": "Content-Type", "value": "application/json", "type": "text" }
+                ],
+                "url": { "raw": "{{base_url}}/api/escrow/Dispute/reportDisputeHearing", "host": ["{{base_url}}"], "path": ["api", "escrow", "Dispute", "reportDisputeHearing"] },
+                "body": { "mode": "raw", "raw": "{\n  \"appid\": \"{{appid}}\",\n  \"dispute_referenceid\": \"DSP-001\",\n  \"referenceid\": \"{{referenceid}}\",\n  \"customer_comment\": \"I want a full refund\",\n  \"merchant_comment\": \"We can offer a partial refund\",\n  \"arbitrator_comment\": \"Both parties should compromise\",\n  \"resolution_desc\": \"Hearing held, decision pending\",\n  \"sitting_date\": \"2026-07-10\",\n  \"next_sitting_date\": \"2026-07-20\"\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Single Dispute",
+              "request": {
+                "method": "GET",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+                "url": {
+                  "raw": "{{base_url}}/api/escrow/Dispute/getDispute?appid={{appid}}&dispute_referenceid=DSP-001&referenceid={{referenceid}}",
+                  "host": ["{{base_url}}"], "path": ["api", "escrow", "Dispute", "getDispute"],
+                  "query": [
+                    { "key": "appid", "value": "{{appid}}" },
+                    { "key": "dispute_referenceid", "value": "DSP-001" },
+                    { "key": "referenceid", "value": "{{referenceid}}" }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get All Disputes for App",
+              "request": {
+                "method": "GET",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+                "url": {
+                  "raw": "{{base_url}}/api/escrow/Dispute/getAllDispute?appid={{appid}}",
+                  "host": ["{{base_url}}"], "path": ["api", "escrow", "Dispute", "getAllDispute"],
+                  "query": [ { "key": "appid", "value": "{{appid}}" } ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Bank Codes",
+          "item": [
+            {
+              "name": "Get Bank Codes",
+              "request": {
+                "method": "GET",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/api/escrow/BankCodes", "host": ["{{base_url}}"], "path": ["api", "escrow", "BankCodes"] },
+                "description": "Returns the bank codes JSON from the assets data file."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Webhooks",
+          "item": [
+            {
+              "name": "Payment Gateway Webhook",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+                "url": {
+                  "raw": "{{base_url}}/api/escrow/webhook/paystack",
+                  "host": ["{{base_url}}"], "path": ["api", "escrow", "webhook", "paystack"],
+                  "variable": [ { "key": "gateway", "value": "paystack" } ]
+                },
+                "description": "Receives payment gateway callbacks. Gateway values: paystack, stripe, flutterwave, seerbit.\n\nPaystack: {\"event\":\"charge.success\", \"data\":{\"reference\":\"...\"}}\nStripe: {\"data\":{\"object\":{\"client_reference_id\":\"...\"}}}\nSeerBit: {\"paymentReference\":\"...\"}",
+                "body": { "mode": "raw", "raw": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"REF-CARD-001\"\n  }\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Bank Transfer (DVA/VAF) Webhook",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+                "url": {
+                  "raw": "{{base_url}}/api/bank-transfer/webhook/paystack",
+                  "host": ["{{base_url}}"], "path": ["api", "bank-transfer", "webhook", "paystack"],
+                  "variable": [ { "key": "gateway", "value": "paystack" } ]
+                },
+                "description": "Receives DVA/VAF credit notifications from gateways.",
+                "body": { "mode": "raw", "raw": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"VA-REF-001\",\n    \"amount\": 50000,\n    \"customer\": {\n      \"email\": \"customer@example.com\"\n    },\n    \"account_number\": \"1234567890\"\n  }\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Settlement Transfer Webhook",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+                "url": {
+                  "raw": "{{base_url}}/api/settlements/webhook/paystack",
+                  "host": ["{{base_url}}"], "path": ["api", "settlements", "webhook", "paystack"],
+                  "variable": [ { "key": "gateway", "value": "paystack" } ]
+                },
+                "description": "Receives transfer status updates from gateways (Paystack transfer.success, Flutterwave transfer.completed).",
+                "body": { "mode": "raw", "raw": "{\n  \"event\": \"transfer.success\",\n  \"data\": {\n    \"reference\": \"TRF-REF-001\",\n    \"amount\": 50000,\n    \"status\": \"success\"\n  }\n}" }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Client Configuration",
+      "item": [
+        {
+          "name": "Get Config",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/config", "host": ["{{base_url}}"], "path": ["api", "client", "config"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Config",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/config", "host": ["{{base_url}}"], "path": ["api", "client", "config"] },
+            "body": { "mode": "raw", "raw": "{\n  \"escrow_hold_days\": 7,\n  \"settlement_schedule\": \"daily\",\n  \"min_settlement_amount\": 1000,\n  \"auto_release_enabled\": true,\n  \"require_fulfillment_confirmation\": false,\n  \"notification_settings\": {\n    \"on_payment\": true,\n    \"on_release\": true,\n    \"on_dispute\": true,\n    \"on_settlement\": true\n  }\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "List Bank Accounts",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/bank-accounts", "host": ["{{base_url}}"], "path": ["api", "client", "bank-accounts"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Bank Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/bank-accounts", "host": ["{{base_url}}"], "path": ["api", "client", "bank-accounts"] },
+            "body": { "mode": "raw", "raw": "{\n  \"bank_name\": \"GTBank\",\n  \"account_name\": \"Acme Corp Ltd\",\n  \"account_number\": \"0123456789\",\n  \"bank_code\": \"058\",\n  \"currency\": \"NGN\",\n  \"is_default\": true\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Bank Account",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/bank-accounts/1", "host": ["{{base_url}}"], "path": ["api", "client", "bank-accounts", "1"] },
+            "body": { "mode": "raw", "raw": "{\n  \"account_name\": \"Acme Corp Updated\",\n  \"is_default\": true\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Bank Account",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/bank-accounts/1", "host": ["{{base_url}}"], "path": ["api", "client", "bank-accounts", "1"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Set Default Bank Account",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/bank-accounts/2/default", "host": ["{{base_url}}"], "path": ["api", "client", "bank-accounts", "2", "default"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get API Token Config",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/api-token-config", "host": ["{{base_url}}"], "path": ["api", "client", "api-token-config"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Update API Token Config",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/api-token-config", "host": ["{{base_url}}"], "path": ["api", "client", "api-token-config"] },
+            "body": { "mode": "raw", "raw": "{\n  \"payment_gateway\": \"paystack\"\n}" }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Wallets",
+      "item": [
+        {
+          "name": "Create Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/wallets", "host": ["{{base_url}}"], "path": ["api", "client", "wallets"] },
+            "body": { "mode": "raw", "raw": "{\n  \"user_identifier\": \"user@example.com\",\n  \"currency\": \"NGN\",\n  \"type\": \"fiat\",\n  \"label\": \"Main Wallet\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "List Wallets",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/wallets", "host": ["{{base_url}}"], "path": ["api", "client", "wallets"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Find Wallet by User",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": {
+              "raw": "{{base_url}}/api/client/wallets/find-by-user?user_identifier=user@example.com&currency=NGN",
+              "host": ["{{base_url}}"], "path": ["api", "client", "wallets", "find-by-user"],
+              "query": [
+                { "key": "user_identifier", "value": "user@example.com" },
+                { "key": "currency", "value": "NGN" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Wallet",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/wallets/1", "host": ["{{base_url}}"], "path": ["api", "client", "wallets", "1"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Wallet Balance",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/wallets/1/balance", "host": ["{{base_url}}"], "path": ["api", "client", "wallets", "1", "balance"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Wallet Transactions",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": {
+              "raw": "{{base_url}}/api/client/wallets/1/transactions?limit=20",
+              "host": ["{{base_url}}"], "path": ["api", "client", "wallets", "1", "transactions"],
+              "query": [ { "key": "limit", "value": "20" } ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Credit Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/wallets/1/credit", "host": ["{{base_url}}"], "path": ["api", "client", "wallets", "1", "credit"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 50000,\n  \"reference\": \"EXT-REF-001\",\n  \"description\": \"Wallet top-up\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Debit Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/wallets/1/debit", "host": ["{{base_url}}"], "path": ["api", "client", "wallets", "1", "debit"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 10000,\n  \"reference\": \"EXT-REF-002\",\n  \"description\": \"Wallet withdrawal\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfer Between Wallets",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/wallets/transfer", "host": ["{{base_url}}"], "path": ["api", "client", "wallets", "transfer"] },
+            "body": { "mode": "raw", "raw": "{\n  \"source_wallet_id\": 1,\n  \"destination_wallet_id\": 2,\n  \"amount\": 5000,\n  \"reference\": \"TRF-001\",\n  \"description\": \"Internal transfer\"\n}" }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transaction Types",
+      "item": [
+        {
+          "name": "List Transaction Types",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/transaction-types", "host": ["{{base_url}}"], "path": ["api", "client", "transaction-types"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Transaction Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/transaction-types", "host": ["{{base_url}}"], "path": ["api", "client", "transaction-types"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Milestone Payment\",\n  \"slug\": \"milestone\",\n  \"description\": \"Milestone-based escrow release\",\n  \"is_active\": true\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Seed Defaults (Escrow, Deposit, etc.)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/transaction-types/seed-defaults", "host": ["{{base_url}}"], "path": ["api", "client", "transaction-types", "seed-defaults"] },
+            "description": "Seeds 6 default transaction types: escrow, deposit, withdrawal, subscription, milestone, instant. Attaches default 2.5% commission rules."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transaction Type",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/transaction-types/1", "host": ["{{base_url}}"], "path": ["api", "client", "transaction-types", "1"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Transaction Type",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/transaction-types/1", "host": ["{{base_url}}"], "path": ["api", "client", "transaction-types", "1"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Milestone Payment\",\n  \"description\": \"Updated description\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Transaction Type",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/transaction-types/1", "host": ["{{base_url}}"], "path": ["api", "client", "transaction-types", "1"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Commission Rules",
+      "item": [
+        {
+          "name": "List Commission Rules",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/commission-rules", "host": ["{{base_url}}"], "path": ["api", "client", "commission-rules"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Commission Rule",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/commission-rules", "host": ["{{base_url}}"], "path": ["api", "client", "commission-rules"] },
+            "body": { "mode": "raw", "raw": "{\n  \"transaction_type_id\": 1,\n  \"name\": \"Standard Fee\",\n  \"type\": \"percentage\",\n  \"value\": 2.5,\n  \"priority\": 1,\n  \"min_amount\": null,\n  \"max_amount\": null,\n  \"is_active\": true\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate Commission (Preview)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/commission-rules/calculate", "host": ["{{base_url}}"], "path": ["api", "client", "commission-rules", "calculate"] },
+            "description": "Preview commission calculation for a given amount and transaction type.",
+            "body": { "mode": "raw", "raw": "{\n  \"transaction_type_id\": 1,\n  \"amount\": 100000\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Commission Rule",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/commission-rules/1", "host": ["{{base_url}}"], "path": ["api", "client", "commission-rules", "1"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Commission Rule",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/commission-rules/1", "host": ["{{base_url}}"], "path": ["api", "client", "commission-rules", "1"] },
+            "body": { "mode": "raw", "raw": "{\n  \"value\": 3.0,\n  \"priority\": 1\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Commission Rule",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/commission-rules/1", "host": ["{{base_url}}"], "path": ["api", "client", "commission-rules", "1"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Bank Transfer / Virtual Accounts",
+      "item": [
+        {
+          "name": "Assign Virtual Account to Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "url": { "raw": "{{base_url}}/api/client/bank-transfer/assign", "host": ["{{base_url}}"], "path": ["api", "client", "bank-transfer", "assign"] },
+            "description": "Assign a virtual account (DVA/VAF) to a transaction. Creates a new one if none exists for this customer.",
+            "body": { "mode": "raw", "raw": "{\n  \"transaction_id\": 1,\n  \"customer_email\": \"customer@example.com\",\n  \"customer_name\": \"John Doe\",\n  \"phone\": \"08012345678\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "List Virtual Accounts",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/bank-transfer/accounts", "host": ["{{base_url}}"], "path": ["api", "client", "bank-transfer", "accounts"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Virtual Account Info",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/bank-transfer/accounts/1", "host": ["{{base_url}}"], "path": ["api", "client", "bank-transfer", "accounts", "1"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Deactivate Virtual Account",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/bank-transfer/accounts/1/deactivate", "host": ["{{base_url}}"], "path": ["api", "client", "bank-transfer", "accounts", "1", "deactivate"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "item": [
+        {
+          "name": "Plans",
+          "item": [
+            {
+              "name": "List Plans",
+              "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/subscription-plans", "host": ["{{base_url}}"], "path": ["api", "client", "subscription-plans"] } },
+              "response": []
+            },
+            {
+              "name": "Create Plan",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/api/client/subscription-plans", "host": ["{{base_url}}"], "path": ["api", "client", "subscription-plans"] },
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Premium Plan\",\n  \"slug\": \"premium\",\n  \"description\": \"Monthly premium subscription\",\n  \"amount\": 50000,\n  \"currency\": \"NGN\",\n  \"billing_frequency\": \"monthly\",\n  \"billing_interval\": 1,\n  \"trial_days\": 7,\n  \"features\": {\"max_transactions\": 1000, \"api_access\": true, \"priority_support\": true},\n  \"is_active\": true\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Plan",
+              "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/subscription-plans/1", "host": ["{{base_url}}"], "path": ["api", "client", "subscription-plans", "1"] } },
+              "response": []
+            },
+            {
+              "name": "Update Plan",
+              "request": {
+                "method": "PUT",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/api/client/subscription-plans/1", "host": ["{{base_url}}"], "path": ["api", "client", "subscription-plans", "1"] },
+                "body": { "mode": "raw", "raw": "{\n  \"amount\": 45000,\n  \"description\": \"Updated description\"\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Plan",
+              "request": { "method": "DELETE", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/subscription-plans/1", "host": ["{{base_url}}"], "path": ["api", "client", "subscription-plans", "1"] } },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Subscriptions",
+          "item": [
+            {
+              "name": "List Subscriptions",
+              "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/subscriptions", "host": ["{{base_url}}"], "path": ["api", "client", "subscriptions"] } },
+              "response": []
+            },
+            {
+              "name": "Create Subscription",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/api/client/subscriptions", "host": ["{{base_url}}"], "path": ["api", "client", "subscriptions"] },
+                "body": { "mode": "raw", "raw": "{\n  \"subscription_plan_id\": 1,\n  \"customer_email\": \"customer@example.com\",\n  \"customer_name\": \"John Doe\"\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Subscription",
+              "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/subscriptions/1", "host": ["{{base_url}}"], "path": ["api", "client", "subscriptions", "1"] } },
+              "response": []
+            },
+            {
+              "name": "Cancel Subscription",
+              "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/subscriptions/1/cancel", "host": ["{{base_url}}"], "path": ["api", "client", "subscriptions", "1", "cancel"] } },
+              "response": []
+            },
+            {
+              "name": "Get Subscription Invoices",
+              "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/subscriptions/1/invoices", "host": ["{{base_url}}"], "path": ["api", "client", "subscriptions", "1", "invoices"] } },
+              "response": []
+            },
+            {
+              "name": "Bill Now (Manual Billing)",
+              "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/subscriptions/1/bill-now", "host": ["{{base_url}}"], "path": ["api", "client", "subscriptions", "1", "bill-now"] } },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Settlements",
+      "item": [
+        {
+          "name": "List Settlements",
+          "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/settlements", "host": ["{{base_url}}"], "path": ["api", "client", "settlements"] } },
+          "response": []
+        },
+        {
+          "name": "Preview Next Settlement Batch",
+          "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/settlements/preview", "host": ["{{base_url}}"], "path": ["api", "client", "settlements", "preview"] } },
+          "response": []
+        },
+        {
+          "name": "Create Settlement Batch",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/settlements", "host": ["{{base_url}}"], "path": ["api", "client", "settlements"] },
+            "description": "Create a new settlement batch from settlable transactions.",
+            "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Weekly settlement\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Settlement Detail",
+          "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/settlements/1", "host": ["{{base_url}}"], "path": ["api", "client", "settlements", "1"] } },
+          "response": []
+        },
+        {
+          "name": "Process Settlement (Initiate Payout)",
+          "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/settlements/1/process", "host": ["{{base_url}}"], "path": ["api", "client", "settlements", "1", "process"] } },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Revenue Analytics",
+      "item": [
+        {
+          "name": "Revenue Overview",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/revenue/overview?period=30d", "host": ["{{base_url}}"], "path": ["api", "revenue", "overview"], "query": [ { "key": "period", "value": "30d" } ] },
+            "description": "Period options: 7d, 30d, 90d, 1y, mtd, ytd"
+          },
+          "response": []
+        },
+        {
+          "name": "Revenue by Transaction Type",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/revenue/by-type?period=30d", "host": ["{{base_url}}"], "path": ["api", "revenue", "by-type"], "query": [ { "key": "period", "value": "30d" } ] },
+            "description": "Commission breakdown by transaction type."
+          },
+          "response": []
+        },
+        {
+          "name": "Revenue Trend",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/revenue/trend?period=30d", "host": ["{{base_url}}"], "path": ["api", "revenue", "trend"], "query": [ { "key": "period", "value": "30d" } ] },
+            "description": "Daily or monthly volume and commission trend data."
+          },
+          "response": []
+        },
+        {
+          "name": "Monthly Recurring Revenue (MRR)",
+          "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/revenue/mrr", "host": ["{{base_url}}"], "path": ["api", "revenue", "mrr"] } },
+          "response": []
+        },
+        {
+          "name": "Merchant Breakdown",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/revenue/merchants?period=30d", "host": ["{{base_url}}"], "path": ["api", "revenue", "merchants"], "query": [ { "key": "period", "value": "30d" } ] },
+            "description": "Per-merchant revenue breakdown."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Rewards & Listing Fees",
+      "item": [
+        {
+          "name": "Reward Programs",
+          "item": [
+            {
+              "name": "List Programs",
+              "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/rewards/programs", "host": ["{{base_url}}"], "path": ["api", "client", "rewards", "programs"] } },
+              "response": []
+            },
+            {
+              "name": "Create Program",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/api/client/rewards/programs", "host": ["{{base_url}}"], "path": ["api", "client", "rewards", "programs"] },
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Cashback 1%\",\n  \"slug\": \"cashback-1\",\n  \"type\": \"percentage\",\n  \"value\": 1.0,\n  \"description\": \"Earn 1% cashback on every transaction\",\n  \"is_active\": true\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Program",
+              "request": {
+                "method": "PUT",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/api/client/rewards/programs/1", "host": ["{{base_url}}"], "path": ["api", "client", "rewards", "programs", "1"] },
+                "body": { "mode": "raw", "raw": "{\n  \"value\": 2.0,\n  \"is_active\": false\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Program",
+              "request": { "method": "DELETE", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/rewards/programs/1", "host": ["{{base_url}}"], "path": ["api", "client", "rewards", "programs", "1"] } },
+              "response": []
+            },
+            {
+              "name": "Get Reward Balance (Customer)",
+              "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/rewards/balance?customer_email=customer@example.com", "host": ["{{base_url}}"], "path": ["api", "client", "rewards", "balance"], "query": [ { "key": "customer_email", "value": "customer@example.com" } ] } },
+              "response": []
+            },
+            {
+              "name": "Get Reward History (Customer)",
+              "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/rewards/history?customer_email=customer@example.com", "host": ["{{base_url}}"], "path": ["api", "client", "rewards", "history"], "query": [ { "key": "customer_email", "value": "customer@example.com" } ] } },
+              "response": []
+            },
+            {
+              "name": "Award Manual Reward",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/api/client/rewards/award", "host": ["{{base_url}}"], "path": ["api", "client", "rewards", "award"] },
+                "body": { "mode": "raw", "raw": "{\n  \"customer_email\": \"customer@example.com\",\n  \"reward_program_id\": 1,\n  \"amount\": 500,\n  \"reason\": \"Promotional bonus\"\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Redeem Reward Points",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/api/client/rewards/redeem", "host": ["{{base_url}}"], "path": ["api", "client", "rewards", "redeem"] },
+                "body": { "mode": "raw", "raw": "{\n  \"customer_email\": \"customer@example.com\",\n  \"reward_program_id\": 1,\n  \"amount\": 200,\n  \"reference\": \"REDEEM-001\"\n}" }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Listing Fees",
+          "item": [
+            {
+              "name": "List Listing Fees",
+              "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/listing-fees", "host": ["{{base_url}}"], "path": ["api", "client", "listing-fees"] } },
+              "response": []
+            },
+            {
+              "name": "Create Listing Fee",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/api/client/listing-fees", "host": ["{{base_url}}"], "path": ["api", "client", "listing-fees"] },
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Standard Listing Fee\",\n  \"type\": \"flat\",\n  \"value\": 5000,\n  \"currency\": \"NGN\",\n  \"is_active\": true\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Listing Fee",
+              "request": {
+                "method": "PUT",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/api/client/listing-fees/1", "host": ["{{base_url}}"], "path": ["api", "client", "listing-fees", "1"] },
+                "body": { "mode": "raw", "raw": "{\n  \"value\": 7500\n}" }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Listing Fee",
+              "request": { "method": "DELETE", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/listing-fees/1", "host": ["{{base_url}}"], "path": ["api", "client", "listing-fees", "1"] } },
+              "response": []
+            },
+            {
+              "name": "Calculate Listing Fee",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/api/client/listing-fees/calculate", "host": ["{{base_url}}"], "path": ["api", "client", "listing-fees", "calculate"] },
+                "body": { "mode": "raw", "raw": "{\n  \"amount\": 100000\n}" }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get Notification Logs",
+          "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/notifications/logs?limit=20", "host": ["{{base_url}}"], "path": ["api", "client", "notifications", "logs"], "query": [ { "key": "limit", "value": "20" } ] } },
+          "response": []
+        },
+        {
+          "name": "Get Notification Events",
+          "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" } ], "url": { "raw": "{{base_url}}/api/client/notifications/events", "host": ["{{base_url}}"], "path": ["api", "client", "notifications", "events"] } },
+          "response": []
+        },
+        {
+          "name": "Test Webhook",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{api_key}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" } ],
+            "url": { "raw": "{{base_url}}/api/client/notifications/test-webhook", "host": ["{{base_url}}"], "path": ["api", "client", "notifications", "test-webhook"] },
+            "body": { "mode": "raw", "raw": "{\n  \"event\": \"test.ping\",\n  \"payload\": {\n    \"message\": \"Hello from Pepper Escrow\"\n  }\n}" }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Merchant Portal (Web UI)",
+      "item": [
+        {
+          "name": "Auth",
+          "item": [
+            { "name": "Show Register Form", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/register", "host": ["{{base_url}}"], "path": ["merchant", "register"] } }, "response": [] },
+            {
+              "name": "Register Merchant",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/merchant/register", "host": ["{{base_url}}"], "path": ["merchant", "register"] },
+                "body": { "mode": "urlencoded", "urlencoded": [
+                  { "key": "business_name", "value": "Acme Corp", "type": "text" },
+                  { "key": "email", "value": "{{merchant_email}}", "type": "text" },
+                  { "key": "phone", "value": "08012345678", "type": "text" },
+                  { "key": "website", "value": "https://acme.com", "type": "text" },
+                  { "key": "password", "value": "{{merchant_password}}", "type": "text" },
+                  { "key": "password_confirmation", "value": "{{merchant_password}}", "type": "text" }
+                ]}
+              },
+              "response": []
+            },
+            { "name": "Show Login Form", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/login", "host": ["{{base_url}}"], "path": ["merchant", "login"] } }, "response": [] },
+            {
+              "name": "Merchant Login",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/merchant/login", "host": ["{{base_url}}"], "path": ["merchant", "login"] },
+                "body": { "mode": "urlencoded", "urlencoded": [
+                  { "key": "email", "value": "{{merchant_email}}", "type": "text" },
+                  { "key": "password", "value": "{{merchant_password}}", "type": "text" }
+                ]}
+              },
+              "response": []
+            },
+            { "name": "Merchant Logout", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/logout", "host": ["{{base_url}}"], "path": ["merchant", "logout"] } }, "response": [] }
+          ]
+        },
+        {
+          "name": "Dashboard & Settings",
+          "item": [
+            { "name": "Dashboard", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/dashboard", "host": ["{{base_url}}"], "path": ["merchant", "dashboard"] } }, "response": [] },
+            { "name": "View API Keys", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/api-keys", "host": ["{{base_url}}"], "path": ["merchant", "api-keys"] } }, "response": [] },
+            {
+              "name": "Regenerate API Keys",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/merchant/api-keys/regenerate", "host": ["{{base_url}}"], "path": ["merchant", "api-keys", "regenerate"] },
+                "body": { "mode": "urlencoded", "urlencoded": [ { "key": "password", "value": "{{merchant_password}}", "type": "text" } ] }
+              },
+              "response": []
+            },
+            { "name": "View Settings", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/settings", "host": ["{{base_url}}"], "path": ["merchant", "settings"] } }, "response": [] },
+            {
+              "name": "Update Integration Settings",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/merchant/settings", "host": ["{{base_url}}"], "path": ["merchant", "settings"] },
+                "body": { "mode": "urlencoded", "urlencoded": [
+                  { "key": "webhook_url", "value": "https://acme.com/webhook", "type": "text" },
+                  { "key": "payment_gateway", "value": "paystack", "type": "text" }
+                ]}
+              },
+              "response": []
+            },
+            {
+              "name": "Update Profile",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/merchant/settings/profile", "host": ["{{base_url}}"], "path": ["merchant", "settings", "profile"] },
+                "body": { "mode": "urlencoded", "urlencoded": [
+                  { "key": "business_name", "value": "Acme Corp Updated", "type": "text" },
+                  { "key": "email", "value": "{{merchant_email}}", "type": "text" },
+                  { "key": "phone", "value": "08087654321", "type": "text" },
+                  { "key": "website", "value": "https://acme.com", "type": "text" }
+                ]}
+              },
+              "response": []
+            },
+            {
+              "name": "Change Password",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/merchant/settings/password", "host": ["{{base_url}}"], "path": ["merchant", "settings", "password"] },
+                "body": { "mode": "urlencoded", "urlencoded": [
+                  { "key": "current_password", "value": "{{merchant_password}}", "type": "text" },
+                  { "key": "password", "value": "newpassword456", "type": "text" },
+                  { "key": "password_confirmation", "value": "newpassword456", "type": "text" }
+                ]}
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Web Pages",
+          "item": [
+            { "name": "View Transactions", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/transactions", "host": ["{{base_url}}"], "path": ["merchant", "transactions"] } }, "response": [] },
+            { "name": "View Wallets", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/wallets", "host": ["{{base_url}}"], "path": ["merchant", "wallets"] } }, "response": [] },
+            { "name": "View Bank Accounts", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/bank-accounts", "host": ["{{base_url}}"], "path": ["merchant", "bank-accounts"] } }, "response": [] },
+            { "name": "View Advanced Settings", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/advanced-settings", "host": ["{{base_url}}"], "path": ["merchant", "advanced-settings"] } }, "response": [] },
+            { "name": "View Transaction Types", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/transaction-types", "host": ["{{base_url}}"], "path": ["merchant", "transaction-types"] } }, "response": [] },
+            { "name": "View Commission Rules", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/commission-rules", "host": ["{{base_url}}"], "path": ["merchant", "commission-rules"] } }, "response": [] },
+            { "name": "View Virtual Accounts", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/virtual-accounts", "host": ["{{base_url}}"], "path": ["merchant", "virtual-accounts"] } }, "response": [] },
+            { "name": "View Subscription Plans", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/subscription-plans", "host": ["{{base_url}}"], "path": ["merchant", "subscription-plans"] } }, "response": [] },
+            { "name": "View Subscriptions", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/subscriptions", "host": ["{{base_url}}"], "path": ["merchant", "subscriptions"] } }, "response": [] },
+            { "name": "View Settlements", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/settlements", "host": ["{{base_url}}"], "path": ["merchant", "settlements"] } }, "response": [] },
+            { "name": "View Revenue Dashboard", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/revenue", "host": ["{{base_url}}"], "path": ["merchant", "revenue"] } }, "response": [] },
+            { "name": "View Reward Programs", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/reward-programs", "host": ["{{base_url}}"], "path": ["merchant", "reward-programs"] } }, "response": [] },
+            { "name": "View Listing Fees", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/listing-fees", "host": ["{{base_url}}"], "path": ["merchant", "listing-fees"] } }, "response": [] },
+            { "name": "View Notifications", "request": { "method": "GET", "url": { "raw": "{{base_url}}/merchant/notifications", "host": ["{{base_url}}"], "path": ["merchant", "notifications"] } }, "response": [] }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin Backend",
+      "item": [
+        {
+          "name": "Authentication",
+          "item": [
+            { "name": "Get Login Page", "request": { "method": "GET", "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] } }, "response": [] },
+            {
+              "name": "Post Login",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] },
+                "body": { "mode": "urlencoded", "urlencoded": [
+                  { "key": "email", "value": "{{email}}", "type": "text" },
+                  { "key": "password", "value": "{{password}}", "type": "text" }
+                ]}
+              },
+              "response": []
+            },
+            { "name": "Logout", "request": { "method": "GET", "url": { "raw": "{{base_url}}/logout", "host": ["{{base_url}}"], "path": ["logout"] } }, "response": [] }
+          ]
+        },
+        {
+          "name": "Dashboard & Reports",
+          "item": [
+            { "name": "Get Dashboard", "request": { "method": "GET", "url": { "raw": "{{base_url}}/dashboard", "host": ["{{base_url}}"], "path": ["dashboard"] } }, "response": [] },
+            { "name": "Get Reports", "request": { "method": "GET", "url": { "raw": "{{base_url}}/Reports", "host": ["{{base_url}}"], "path": ["Reports"] } }, "response": [] }
+          ]
+        },
+        {
+          "name": "User Management",
+          "item": [
+            { "name": "Get Users", "request": { "method": "GET", "url": { "raw": "{{base_url}}/users", "host": ["{{base_url}}"], "path": ["users"] } }, "response": [] },
+            {
+              "name": "Add User",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/users/register", "host": ["{{base_url}}"], "path": ["users", "register"] },
+                "body": { "mode": "urlencoded", "urlencoded": [
+                  { "key": "email", "value": "newuser@example.com", "type": "text" },
+                  { "key": "password", "value": "secret123", "type": "text" },
+                  { "key": "fname", "value": "New", "type": "text" },
+                  { "key": "lname", "value": "User", "type": "text" },
+                  { "key": "job_title", "value": "Operator", "type": "text" },
+                  { "key": "phone_no", "value": "08012345678", "type": "text" },
+                  { "key": "is_super_admin", "value": "user", "type": "text" },
+                  { "key": "app_id", "value": "{{appid}}", "type": "text" }
+                ]}
+              },
+              "response": []
+            },
+            {
+              "name": "Edit User",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/users/edit", "host": ["{{base_url}}"], "path": ["users", "edit"] },
+                "body": { "mode": "urlencoded", "urlencoded": [
+                  { "key": "userID", "value": "2", "type": "text" },
+                  { "key": "email", "value": "updated@example.com", "type": "text" },
+                  { "key": "password", "value": "", "type": "text" },
+                  { "key": "fname", "value": "Updated", "type": "text" },
+                  { "key": "lname", "value": "Name", "type": "text" },
+                  { "key": "job_title", "value": "Manager", "type": "text" },
+                  { "key": "phone_no", "value": "08087654321", "type": "text" },
+                  { "key": "is_super_admin", "value": "user", "type": "text" },
+                  { "key": "app_id", "value": "{{appid}}", "type": "text" }
+                ]}
+              },
+              "response": []
+            },
+            {
+              "name": "Block / Unblock User",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/users/block", "host": ["{{base_url}}"], "path": ["users", "block"] },
+                "body": { "mode": "urlencoded", "urlencoded": [ { "key": "userID", "value": "2", "type": "text" } ] }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete User",
+              "request": {
+                "method": "POST",
+                "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded", "type": "text" } ],
+                "url": { "raw": "{{base_url}}/users/delete", "host": ["{{base_url}}"], "path": ["users", "delete"] },
+                "body": { "mode": "urlencoded", "urlencoded": [ { "key": "user_id", "value": "2", "type": "text" } ] }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Super Admin Dashboard",
+      "item": [
+        { "name": "Platform Overview", "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/dashboard", "host": ["{{base_url}}"], "path": ["admin", "dashboard"] } }, "response": [] },
+        {
+          "name": "Merchants",
+          "item": [
+            { "name": "List Merchants", "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/merchants", "host": ["{{base_url}}"], "path": ["admin", "merchants"] }, "description": "Filter: ?search=&status=" }, "response": [] },
+            { "name": "Merchant Detail", "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/merchants/1", "host": ["{{base_url}}"], "path": ["admin", "merchants", "1"] } }, "response": [] },
+            { "name": "Toggle Merchant Status", "request": { "method": "POST", "url": { "raw": "{{base_url}}/admin/merchants/1/toggle", "host": ["{{base_url}}"], "path": ["admin", "merchants", "1", "toggle"] } }, "response": [] }
+          ]
+        },
+        {
+          "name": "Transactions",
+          "item": [
+            { "name": "All Transactions", "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/transactions", "host": ["{{base_url}}"], "path": ["admin", "transactions"] }, "description": "Filters: ?merchant_id=&status=&gateway=&date_from=&date_to=" }, "response": [] },
+            { "name": "Transaction Detail", "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/transactions/1", "host": ["{{base_url}}"], "path": ["admin", "transactions", "1"] } }, "response": [] }
+          ]
+        },
+        {
+          "name": "Settlements",
+          "item": [
+            { "name": "All Settlements", "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/settlements", "host": ["{{base_url}}"], "path": ["admin", "settlements"] }, "description": "Filters: ?merchant_id=&status=" }, "response": [] },
+            { "name": "Settlement Detail", "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/settlements/1", "host": ["{{base_url}}"], "path": ["admin", "settlements", "1"] } }, "response": [] }
+          ]
+        },
+        { "name": "Notification Logs", "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/notifications?merchant_id=&event=&status=", "host": ["{{base_url}}"], "path": ["admin", "notifications"] } }, "response": [] },
+        { "name": "Revenue Analytics", "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/revenue", "host": ["{{base_url}}"], "path": ["admin", "revenue"] } }, "response": [] }
+      ]
+    }
+  ]
+}

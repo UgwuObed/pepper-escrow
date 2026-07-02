@@ -1,0 +1,891 @@
+[
+    {
+      "Country": "NIGERIA",
+      "default_currency": "NGN",
+      "supported_bank_account_currencies": {
+        "NGN": [
+          "KES",
+          "TZS",
+          "NGN",
+          "GHS",
+          "UGX",
+          "USD"
+        ]
+      },
+      "supported_payment_currencies": [
+        "USD",
+        "NGN"
+      ],
+      "banks":[
+        {
+          "Code": "560",
+          "Name": "Page MFBank"
+        },
+        {
+          "Code": "304",
+          "Name": "Stanbic Mobile Money"
+        },
+        {
+          "Code": "308",
+          "Name": "FortisMobile"
+        },
+        {
+          "Code": "328",
+          "Name": "TagPay"
+        },
+        {
+          "Code": "309",
+          "Name": "FBNMobile"
+        },
+        {
+          "Code": "011",
+          "Name": "First Bank of Nigeria"
+        },
+        {
+          "Code": "326",
+          "Name": "Sterling Mobile"
+        },
+        {
+          "Code": "990",
+          "Name": "Omoluabi Mortgage Bank"
+        },
+        {
+          "Code": "311",
+          "Name": "ReadyCash (Parkway)"
+        },
+        {
+          "Code": "057",
+          "Name": "Zenith Bank"
+        },
+        {
+          "Code": "068",
+          "Name": "Standard Chartered Bank"
+        },
+        {
+          "Code": "306",
+          "Name": "eTranzact"
+        },
+        {
+          "Code": "070",
+          "Name": "Fidelity Bank"
+        },
+        {
+          "Code": "023",
+          "Name": "CitiBank"
+        },
+        {
+          "Code": "215",
+          "Name": "Unity Bank"
+        },
+        {
+          "Code": "323",
+          "Name": "Access Money"
+        },
+        {
+          "Code": "302",
+          "Name": "Eartholeum"
+        },
+        {
+          "Code": "324",
+          "Name": "Hedonmark"
+        },
+        {
+          "Code": "325",
+          "Name": "MoneyBox"
+        },
+        {
+          "Code": "301",
+          "Name": "JAIZ Bank"
+        },
+        {
+          "Code": "050",
+          "Name": "Ecobank Plc"
+        },
+        {
+          "Code": "307",
+          "Name": "EcoMobile"
+        },
+        {
+          "Code": "318",
+          "Name": "Fidelity Mobile"
+        },
+        {
+          "Code": "319",
+          "Name": "TeasyMobile"
+        },
+        {
+          "Code": "999",
+          "Name": "NIP Virtual Bank"
+        },
+        {
+          "Code": "320",
+          "Name": "VTNetworks"
+        },
+        {
+          "Code": "221",
+          "Name": "Stanbic IBTC Bank"
+        },
+        {
+          "Code": "501",
+          "Name": "Fortis Microfinance Bank"
+        },
+        {
+          "Code": "329",
+          "Name": "PayAttitude Online"
+        },
+        {
+          "Code": "322",
+          "Name": "ZenithMobile"
+        },
+        {
+          "Code": "303",
+          "Name": "ChamsMobile"
+        },
+        {
+          "Code": "403",
+          "Name": "SafeTrust Mortgage Bank"
+        },
+        {
+          "Code": "551",
+          "Name": "Covenant Microfinance Bank"
+        },
+        {
+          "Code": "415",
+          "Name": "Imperial Homes Mortgage Bank"
+        },
+        {
+          "Code": "552",
+          "Name": "NPF MicroFinance Bank"
+        },
+        {
+          "Code": "526",
+          "Name": "Parralex"
+        },
+        {
+          "Code": "035",
+          "Name": "Wema Bank"
+        },
+        {
+          "Code": "084",
+          "Name": "Enterprise Bank"
+        },
+        {
+          "Code": "063",
+          "Name": "Diamond Bank"
+        },
+        {
+          "Code": "305",
+          "Name": "Paycom"
+        },
+        {
+          "Code": "100",
+          "Name": "SunTrust Bank"
+        },
+        {
+          "Code": "317",
+          "Name": "Cellulant"
+        },
+        {
+          "Code": "401",
+          "Name": "ASO Savings and & Loans"
+        },
+        {
+          "Code": "030",
+          "Name": "Heritage"
+        },
+        {
+          "Code": "402",
+          "Name": "Jubilee Life Mortgage Bank"
+        },
+        {
+          "Code": "058",
+          "Name": "GTBank Plc"
+        },
+        {
+          "Code": "032",
+          "Name": "Union Bank"
+        },
+        {
+          "Code": "232",
+          "Name": "Sterling Bank"
+        },
+        {
+          "Code": "076",
+          "Name": "Skye Bank"
+        },
+        {
+          "Code": "082",
+          "Name": "Keystone Bank"
+        },
+        {
+          "Code": "327",
+          "Name": "Pagatech"
+        },
+        {
+          "Code": "559",
+          "Name": "Coronation Merchant Bank"
+        },
+        {
+          "Code": "601",
+          "Name": "FSDH"
+        },
+        {
+          "Code": "313",
+          "Name": "Mkudi"
+        },
+        {
+          "Code": "214",
+          "Name": "First City Monument Bank"
+        },
+        {
+          "Code": "314",
+          "Name": "FET"
+        },
+        {
+          "Code": "523",
+          "Name": "Trustbond"
+        },
+        {
+          "Code": "315",
+          "Name": "GTMobile"
+        },
+        {
+          "Code": "033",
+          "Name": "United Bank for Africa"
+        },
+        {
+          "Code": "044",
+          "Name": "Access Bank"
+        }
+      ]
+      
+    },
+    {
+      "Country": "UGANDA",
+      "default_currency": "UGX",
+      "supported_bank_account_currencies": {
+        "UGX": [
+          "KES",
+          "TZS",
+          "NGN",
+          "GHS",
+          "UGX",
+          "USD"
+        ]
+      },
+     
+      "supported_payment_currencies": [
+        "USD",
+        "UGX"
+      ],
+       "banks":[
+        {
+          "Code": "16",
+          "Name": "Centenary Rural Development Bank Limited"
+        },
+        {
+          "Code": "05",
+          "Name": "DFCU Bank"
+        },
+        {
+          "Code": "01",
+          "Name": "Barclays Bank of Uganda Limited"
+        },
+        {
+          "Code": "11",
+          "Name": "Orient Bank Ltd"
+        },
+        {
+          "Code": "35",
+          "Name": "NC Bank Uganda Limited"
+        },
+        {
+          "Code": "19",
+          "Name": "Diamond Trust Bank Uganda Limited"
+        },
+        {
+          "Code": "29",
+          "Name": "Ecobank Uganda Limited"
+        },
+        {
+          "Code": "06",
+          "Name": "Tropical Bank Ltd"
+        },
+        {
+          "Code": "02",
+          "Name": "Bank of Baroda"
+        },
+        {
+          "Code": "26",
+          "Name": "United Bank for Africa Uganda Ltd"
+        },
+        {
+          "Code": "22",
+          "Name": "Citibank Uganda Ltd"
+        },
+        {
+          "Code": "32",
+          "Name": "Exim Bank (Uganda) Ltd"
+        },
+        {
+          "Code": "23",
+          "Name": "Housing Finance Bank Ltd"
+        },
+        {
+          "Code": "13",
+          "Name": "Bank of Africa Uganda Ltd."
+        },
+        {
+          "Code": "37",
+          "Name": "Finance Trust Bank Ltd"
+        },
+        {
+          "Code": "36",
+          "Name": "Commercial Bank of Africa (Uganda) Ltd"
+        },
+        {
+          "Code": "25",
+          "Name": "KCB Bank Uganda Limited"
+        },
+        {
+          "Code": "04",
+          "Name": "Stanbic Bank Uganda Ltd"
+        },
+        {
+          "Code": "31",
+          "Name": "ABC Capital Bank Limited"
+        },
+        {
+          "Code": "30",
+          "Name": "Equity Bank Uganda Ltd"
+        },
+        {
+          "Code": "08",
+          "Name": "Standard Chartered Bank Uganda Limited"
+        },
+        {
+          "Code": "18",
+          "Name": "Cairo International Bank Ltd"
+        }
+  
+      ]
+    },
+    {
+      "Country": "KENYA",
+      "default_currency": "KES",
+      "supported_bank_account_currencies": {
+        "KES": [
+          "KES",
+          "TZS",
+          "NGN",
+          "GHS",
+          "UGX",
+          "USD"
+        ]
+      },
+      "supported_payment_currencies": [
+        "USD",
+        "KES"
+      ],
+      "banks":[
+        {
+          "Code": "01",
+          "Name": "Kenya Commercial Bank Limited"
+        },
+        {
+          "Code": "11",
+          "Name": "Co-operative Bank of Kenya Limited"
+        },
+        {
+          "Code": "31",
+          "Name": "CFC Stanbic Bank Kenya Limited"
+        },
+        {
+          "Code": "41",
+          "Name": "NIC Bank Limited"
+        },
+        {
+          "Code": "51",
+          "Name": "Jamii Bora Bank"
+        },
+        {
+          "Code": "61",
+          "Name": "Housing Finance Bank"
+        },
+        {
+          "Code": "14",
+          "Name": "Oriental Commercial Bank Limited"
+        },
+        {
+          "Code": "54",
+          "Name": "Victoria Commercial Bank Limited"
+        },
+        {
+          "Code": "07",
+          "Name": "Commercial Bank of Africa Limited"
+        },
+        {
+          "Code": "49",
+          "Name": "Equatorial Commercial Bank Limited"
+        },
+        {
+          "Code": "57",
+          "Name": "Investments n Mortgages Bank Limited"
+        },
+        {
+          "Code": "39",
+          "Name": "Imperial Bank Limited"
+        },
+        {
+          "Code": "12",
+          "Name": "National Bank of Kenya Limited"
+        },
+        {
+          "Code": "72",
+          "Name": "Gulf African Bank Ltd"
+        },
+        {
+          "Code": "25",
+          "Name": "Credit Bank Limited"
+        },
+        {
+          "Code": "35",
+          "Name": "African Banking Corp. Bank Ltd"
+        },
+        {
+          "Code": "74",
+          "Name": "First Community Bank"
+        },
+        {
+          "Code": "55",
+          "Name": "Guardian Bank Limited"
+        },
+        {
+          "Code": "10",
+          "Name": "Prime Bank Limited"
+        },
+        {
+          "Code": "20",
+          "Name": "Dubai Bank Kenya Limited"
+        },
+        {
+          "Code": "30",
+          "Name": "Chase Bank Limited"
+        },
+        {
+          "Code": "50",
+          "Name": "Paramount Universal Bank Limited"
+        },
+        {
+          "Code": "70",
+          "Name": "Family Bank Ltd"
+        },
+        {
+          "Code": "23",
+          "Name": "Consolidated Bank of Kenya Limited"
+        },
+        {
+          "Code": "18",
+          "Name": "Middle East Bank Kenya Limited"
+        },
+        {
+          "Code": "63",
+          "Name": "Diamond Trust Bank Limited"
+        },
+        {
+          "Code": "16",
+          "Name": "Citibank N.A."
+        },
+        {
+          "Code": "26",
+          "Name": "Trans-National Bank Limited"
+        },
+        {
+          "Code": "68",
+          "Name": "Equity Bank Limited"
+        },
+        {
+          "Code": "66",
+          "Name": "K-Rep Bank Limited"
+        },
+        {
+          "Code": "76",
+          "Name": "UBA Kenya Bank Ltd"
+        },
+        {
+          "Code": "19",
+          "Name": "Bank of  Africa Kenya Limited"
+        },
+        {
+          "Code": "10276",
+          "Name": "Barclays Bank of Kenya"
+        },
+        {
+          "Code": "MPS",
+          "Name": "MPESA"
+        }
+      ]
+    },
+    {
+      
+      "Country": "GHANA",
+      "default_currency": "GHS",
+      "supported_bank_account_currencies": {
+        "GHS": [
+          "KES",
+          "TZS",
+          "NGN",
+          "GHS",
+          "UGX",
+          "USD"
+        ]
+      },
+      "supported_payment_currencies": [
+        "USD",
+        "GHS"
+      ],
+        "banks": [
+        {
+          
+          "Code": "MTN",
+          "Name": "MTN Mobile Money"
+        },
+        {
+         
+          "Code": "TIG",
+          "Name": "TIGO Mobile Money"
+        },
+        {
+          
+          "Code": "VDF",
+          "Name": "Vodafone Mobile Money"
+        },
+        {
+          "Code": "AIR",
+          "Name": "Airtel Mobile Money"
+        },
+        {
+          "Code": "GH010100",
+          "Name": "BANK OF GHANA"
+        },
+        {
+          "Code": "GH020100",
+          "Name": "STANDARD CHARTERED BANK"
+        },
+        {
+          "Code": "GH030100",
+          "Name": "BARCLAYS BANK"
+        },
+        {
+          "Code": "GH040100",
+          "Name": "GCB BANK LTD"
+        },
+        {
+          "Code": "GH050100",
+          "Name": "NATIONAL INVESTMENT BANK"
+        },
+        {
+          "Code": "GH060100",
+          "Name": "UNITED BANK FOR AFRICA"
+        },
+        {
+          "Code": "GH070100",
+          "Name": "ARB APEX BANK LTD"
+        },
+        {
+          "Code": "GH080100",
+          "Name": "AGRICULTURAL DEVELOPMENT BANK"
+        },
+        {
+          "Code": "GH090100",
+          "Name": "SG-SSB LTD"
+        },
+        {
+          "Code": "GH100100",
+          "Name": "UNIVERSAL MERCHANT BANK"
+        },
+        {
+          "Code": "GH110100",
+          "Name": "HFC BANK"
+        },
+        {
+          "Code": "GH120100",
+          "Name": "ZENITH BANK"
+        },
+        {
+          "Code": "GH130100",
+          "Name": "ECOBANK"
+        },
+        {
+          "Code": "GH140100",
+          "Name": "CAL BANK"
+        },
+        {
+          "Code": "GH150100",
+          "Name": "THE TRUST BANK LTD"
+        },
+        {
+          "Code": "GH160100",
+          "Name": "UT BANK"
+        },
+        {
+          "Code": "GH170100",
+          "Name": "FIRST ATLANTIC MERCHANT"
+        },
+        {
+          "Code": "GH180100",
+          "Name": "PRUDENTIAL BANK LTD"
+        },
+        {
+          "Code": "GH190100",
+          "Name": "STANBIC BANK"
+        },
+        {
+          "Code": "GH200100",
+          "Name": "FBN BANK GHANA"
+        },
+        {
+          "Code": "GH210100",
+          "Name": "AMALGAMATED BANK LTD"
+        },
+        {
+          "Code": "GH220100",
+          "Name": "UNIBANK GHANA LTD"
+        },
+        {
+          "Code": "GH230100",
+          "Name": "GUARANTY TRUST BANK"
+        },
+        {
+          "Code": "GH240100",
+          "Name": "FIDELITY BANK"
+        },
+        {
+          "Code": "GH250100",
+          "Name": "INTERCONTINENTAL BANK LTD"
+        },
+        {
+          "Code": "GH260100",
+          "Name": "BANK OF BARODA"
+        },
+        {
+          "Code": "GH270100",
+          "Name": "BSIC GHANA LTD"
+        },
+        {
+          "Code": "GH280100",
+          "Name": "ACCESS BANK GH LTD"
+        },
+        {
+          "Code": "GH290100",
+          "Name": "ENERGY BANK"
+        },
+        {
+          "Code": "GH300100",
+          "Name": "ROYAL BANK"
+        },
+        {
+          "Code": "GH310100",
+          "Name": "FIRST CAPITAL PLUS  BANK"
+        },
+        {
+          "Code": "GH320100",
+          "Name": "GN BANK LTD"
+        },
+        {
+          "Code": "GH330100",
+          "Name": "FIRST NATIONAL BANK"
+        },
+        {
+          "Code": "GH340100",
+          "Name": "SOVEREIGN BANK"
+        },
+        {
+          "Code": "GH350100",
+          "Name": "PREMIUM BANK"
+        },
+        {
+          "Code": "GH360100",
+          "Name": "OMNIBANK GHANA LTD"
+        }
+      ]
+    },
+      {
+      
+      "Country": "TANZANIA",
+      "default_currency": "TZS",
+      "supported_bank_account_currencies": {
+        "TZS": [
+          "KES",
+          "TZS",
+          "NGN",
+          "GHS",
+          "UGX",
+          "USD"
+        ]
+      },
+      "supported_payment_currencies": [
+        "USD",
+        "TZS"
+      ],
+      "banks": [
+        {
+          "Code": "045",
+          "Name": "FIRST NATIONAL BANK OF TANZANIA"
+        },
+        {
+          "Code": "008",
+          "Name": "CITIBANK TANZANIA LTD"
+        },
+        {
+          "Code": "047",
+          "Name": "EQUITY BANK TANZANIA LIMITED"
+        },
+        {
+          "Code": "026",
+          "Name": "NIC BANK (TANZANIA) LIMITED"
+        },
+        {
+          "Code": "011",
+          "Name": "DIAMOND TRUST BANK TANZANIA LTD"
+        },
+        {
+          "Code": "038",
+          "Name": "UNITED BANK FOR AFRICA (TANZANIA) LIMITED"
+        },
+        {
+          "Code": "012",
+          "Name": "AKIBA COMMERCIAL BANK PLC"
+        },
+        {
+          "Code": "039",
+          "Name": "MKOMBOZI COMMERCIAL BANK LTD"
+        },
+        {
+          "Code": "040",
+          "Name": "ECOBANK TANZANIA LIMITED"
+        },
+        {
+          "Code": "042",
+          "Name": "MWANGA COMMUNITY BANK LTD"
+        },
+        {
+          "Code": "023",
+          "Name": "COMMERCIAL BANK OF AFRICA (TANZANIA) LTD"
+        },
+        {
+          "Code": "053",
+          "Name": "CHINA COMMERCIAL BANK LIMITED"
+        },
+        {
+          "Code": "006",
+          "Name": "STANBIC BANK TANZANIA LIMITED"
+        },
+        {
+          "Code": "018",
+          "Name": "HABIB AFRICAN BANK"
+        },
+        {
+          "Code": "009",
+          "Name": "BOA BANK TANZANIA"
+        },
+        {
+          "Code": "019",
+          "Name": "INTERNATIONAL COMMERCIAL BANK (TANZANIA) LIMITED"
+        },
+        {
+          "Code": "020",
+          "Name": "BARCLAYS BANK TANZANIA LTD"
+        },
+        {
+          "Code": "021",
+          "Name": "I AND M BANK (T) LIMITED"
+        },
+        {
+          "Code": "049",
+          "Name": "COVENANT BANK FOR WOMEN (TANZANIA) LIMITED"
+        },
+        {
+          "Code": "050",
+          "Name": "UBL BANK (TANZANIA) LIMITED"
+        },
+        {
+          "Code": "051",
+          "Name": "MAENDELEO BANK LTD"
+        },
+        {
+          "Id": 235,
+          "Code": "003",
+          "Name": "CRDB BANK LIMITED"
+        },
+        {
+          "Code": "004",
+          "Name": "PEOPLE'S BANK OF ZANZIBAR, THE"
+        },
+        {
+          "Code": "005",
+          "Name": "STANDARD CHARTERED BANK TANZANIA LTD"
+        },
+        {
+          "Code": "035",
+          "Name": "ACCESSBANK TANZANIA LTD"
+        },
+        {
+          "Code": "017",
+          "Name": "KCB BANK TANZANIA LIMITED"
+        },
+        {
+          "Code": "033",
+          "Name": "BANK M TANZANIA PLC"
+        },
+        {
+          "Code": "036",
+          "Name": "BANK OF INDIA (TANZANIA) LIMITED"
+        },
+        {
+          "Code": "733",
+          "Name": "AFRICAN BANKING CORPORATION TANZANIA LIMITED"
+        },
+        {
+          "Code": "016",
+          "Name": "NMB BANK PLC"
+        },
+        {
+          "Code": "001",
+          "Name": "BANK OF TANZANIA"
+        },
+        {
+          "Code": "029",
+          "Name": "BANK OF BARODA (TANZANIA) LTD"
+        },
+        {
+          "Code": "046",
+          "Name": "AMANA BANK LIMITED"
+        },
+        {
+          "Code": "031",
+          "Name": "AZANIA BANK LIMITED"
+        },
+        {
+          "Code": "058",
+          "Name": "CANARA BANK (TANZANIA) LTD"
+        },
+        {
+          "Code": "032",
+          "Name": "UCHUMI COMMERCIAL BANK LTD"
+        },
+        {
+          "Code": "013",
+          "Name": "EXIMBANK (TANZANIA) LTD"
+        },
+        {
+          "Code": "014",
+          "Name": "KILIMANJARO CO-OPERATIVE BANK LTD"
+        },
+        {
+          "Code": "015",
+          "Name": "NATIONAL BANK OF COMMERCE, THE"
+        }
+      ]
+    }
+  ]

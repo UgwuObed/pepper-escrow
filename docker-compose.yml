@@ -1,0 +1,63 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pepper-escrow-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-80}:80"
+    environment:
+      APP_ENV: production
+      APP_DEBUG: false
+      APP_URL: "${APP_URL:-http://localhost}"
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: pepper_escrow
+      DB_USERNAME: pepper_escrow
+      DB_PASSWORD: "${DB_PASSWORD:-secret}"
+      SESSION_DRIVER: file
+      SESSION_LIFETIME: 120
+      CACHE_STORE: file
+      QUEUE_CONNECTION: database
+      ESCROW_DEFAULT_GATEWAY: "${ESCROW_DEFAULT_GATEWAY:-paystack}"
+      PAYSTACK_PUBLIC_KEY: "${PAYSTACK_PUBLIC_KEY:-}"
+      PAYSTACK_SECRET_KEY: "${PAYSTACK_SECRET_KEY:-}"
+      STRIPE_PUBLIC_KEY: "${STRIPE_PUBLIC_KEY:-}"
+      STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"
+      SEERBIT_PUBLIC_KEY: "${SEERBIT_PUBLIC_KEY:-}"
+      SEERBIT_SECRET_KEY: "${SEERBIT_SECRET_KEY:-}"
+      SEERBIT_ENCRYPTION_KEY: "${SEERBIT_ENCRYPTION_KEY:-}"
+      FLUTTERWAVE_PUBLIC_KEY: "${FLUTTERWAVE_PUBLIC_KEY:-}"
+      FLUTTERWAVE_SECRET_KEY: "${FLUTTERWAVE_SECRET_KEY:-}"
+      FLUTTERWAVE_ENCRYPTION_KEY: "${FLUTTERWAVE_ENCRYPTION_KEY:-}"
+      APP_SEED: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - app_storage:/var/www/storage
+
+  db:
+    image: mysql:8.0
+    container_name: pepper-escrow-db
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    environment:
+      MYSQL_DATABASE: pepper_escrow
+      MYSQL_USER: pepper_escrow
+      MYSQL_PASSWORD: "${DB_PASSWORD:-secret}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-rootsecret}"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootsecret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  app_storage:
+  db_data:
