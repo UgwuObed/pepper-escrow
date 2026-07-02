@@ -50,7 +50,6 @@ jobs:
       - name: Run Tests
         run: php artisan test
 
-  # ─── Continuous Deployment ──────────────────────────────────────
   deploy:
     if: github.ref == 'refs/heads/main'
     needs: [tests]
