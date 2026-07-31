@@ -92,6 +92,24 @@ class StripeGateway implements PaymentGatewayInterface
         ];
     }
 
+    public function verifyWebhookSignature(string $rawPayload, array $headers): bool
+    {
+        $secret = config('gateways.stripe.webhook_secret');
+        $header = $headers['stripe-signature'] ?? '';
+
+        if (!$secret || $header === '') {
+            return false;
+        }
+
+        try {
+            \Stripe\Webhook::constructEvent($rawPayload, $header, $secret);
+            return true;
+        } catch (\Exception $e) {
+            Log::warning('Stripe webhook signature rejected', ['message' => $e->getMessage()]);
+            return false;
+        }
+    }
+
     public function getName(): string
     {
         return 'Stripe';

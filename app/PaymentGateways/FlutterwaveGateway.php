@@ -106,6 +106,19 @@ class FlutterwaveGateway implements PaymentGatewayInterface
         }
     }
 
+    public function verifyWebhookSignature(string $rawPayload, array $headers): bool
+    {
+        // Flutterwave sends the configured secret hash verbatim in `verif-hash`.
+        $secretHash = config('gateways.flutterwave.secret_hash');
+        $received = $headers['verif-hash'] ?? '';
+
+        if (!$secretHash || $received === '') {
+            return false;
+        }
+
+        return hash_equals((string) $secretHash, (string) $received);
+    }
+
     public function getName(): string
     {
         return 'Flutterwave';

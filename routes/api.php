@@ -8,8 +8,6 @@ Route::group([
     'prefix' => 'escrow',
     'middleware' => 'auth.api-key',
 ], function () {
-    Route::post('webhook/{gateway}', 'EscrowController@handleWebhook');
-
     Route::get('BankCodes', 'EscrowController@getBankCodes');
 
     // Transaction endpoints
@@ -24,6 +22,7 @@ Route::group([
     Route::post('Transaction/refund', 'EscrowController@refundTransaction');
     Route::get('Transaction/AppTranx', 'EscrowController@getAppTransactions');
     Route::get('Transaction/AppTranx/ByRef', 'EscrowController@getAppTransactionByRef');
+    Route::get('Transaction/verify', 'EscrowController@verifyPayment');
 
     // Dispute endpoints
     Route::post('Dispute/reportDispute', 'EscrowController@reportDispute');
@@ -32,6 +31,15 @@ Route::group([
     Route::post('Dispute/reportDisputeHearing', 'EscrowController@reportDisputeHearing');
     Route::get('Dispute/getDispute', 'EscrowController@getDispute');
     Route::get('Dispute/getAllDispute', 'EscrowController@getAllDispute');
+});
+
+// Public card payment webhook (no API key — gateways call this, and they cannot
+// send one. Authenticity is established by signature verification in the handler.)
+Route::group([
+    'namespace' => 'App\Http\Controllers\Escrow',
+    'prefix' => 'escrow',
+], function () {
+    Route::post('webhook/{gateway}', 'EscrowController@handleWebhook');
 });
 
 // Client Configuration API (authenticated by API key)

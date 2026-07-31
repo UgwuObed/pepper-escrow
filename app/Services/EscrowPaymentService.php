@@ -50,8 +50,13 @@ class EscrowPaymentService
         return $list;
     }
 
-    public function createTransactionWithPayment(
-        array $transactionData,
+    /**
+     * Generate a gateway payment link for an existing escrow transaction.
+     *
+     * The transaction must already be persisted — this method never creates one.
+     */
+    public function createPaymentForTransaction(
+        Transaction $transaction,
         string $customerEmail,
         string $customerName,
         string $callbackUrl,
@@ -60,8 +65,6 @@ class EscrowPaymentService
         $gateway = $token
             ? $this->getGatewayForToken($token)
             : $this->getGateway();
-
-        $transaction = Transaction::create($transactionData);
 
         $reference = $transaction->transcode;
 
@@ -106,16 +109,65 @@ class EscrowPaymentService
     {
         $transaction = Transaction::where('transcode', $reference)->firstOrFail();
 
+        // Already settled — return the known state instead of re-applying it, so
+        // that a webhook and a redirect-verify for the same payment are idempotent.
+        if ($transaction->payment_status === 'Paid') {
+            return [
+                'status' => 'success',
+                'amount' => (float) $transaction->amount,
+                'currency' => $transaction->currency,
+                'reference' => $reference,
+                'already_processed' => true,
+                'gateway_response' => json_decode($transaction->gateway_response ?? '[]', true) ?: [],
+            ];
+        }
+
         $gatewayKey = $transaction->payment_gateway ?? config('escrow.default_gateway');
         $gateway = $this->getGateway($gatewayKey);
 
         $result = $gateway->verifyPayment($reference);
 
-        if ($result['status'] === 'success') {
+        if ($result['status'] === 'success' || $result['status'] === 'successful') {
+            $expected = (float) $transaction->amount;
+            $paid = (float) $result['amount'];
+
+            // Never open escrow on an underpayment, and never on a currency swap.
+            if (round($paid, 2) < round($expected, 2)) {
+                $transaction->update([
+                    'payment_status' => 'Underpaid',
+                    'gateway_response' => json_encode($result['gateway_response']),
+                ]);
+
+                Log::warning('Escrow payment amount mismatch', [
+                    'transcode' => $reference,
+                    'expected' => $expected,
+                    'paid' => $paid,
+                ]);
+
+                return array_merge($result, [
+                    'status' => 'amount_mismatch',
+                    'expected_amount' => $expected,
+                ]);
+            }
+
+            if (!empty($result['currency']) && strcasecmp($result['currency'], (string) $transaction->currency) !== 0) {
+                Log::warning('Escrow payment currency mismatch', [
+                    'transcode' => $reference,
+                    'expected' => $transaction->currency,
+                    'paid' => $result['currency'],
+                ]);
+
+                return array_merge($result, [
+                    'status' => 'currency_mismatch',
+                    'expected_currency' => $transaction->currency,
+                ]);
+            }
+
             $transaction->update([
                 'payment_status' => 'Paid',
                 'trans_status' => 'Open',
                 'payment_date' => now(),
+                'amountpaid' => $paid,
                 'gateway_response' => json_encode($result['gateway_response']),
             ]);
         }

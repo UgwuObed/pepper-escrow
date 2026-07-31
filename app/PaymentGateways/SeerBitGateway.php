@@ -108,6 +108,14 @@ class SeerBitGateway implements PaymentGatewayInterface
         ];
     }
 
+    public function verifyWebhookSignature(string $rawPayload, array $headers): bool
+    {
+        // SeerBit does not sign its callbacks. Authenticity is instead established
+        // by re-verifying the reference against the SeerBit API before the payment
+        // is applied, which the webhook handler always does.
+        return true;
+    }
+
     public function getName(): string
     {
         return 'SeerBit';

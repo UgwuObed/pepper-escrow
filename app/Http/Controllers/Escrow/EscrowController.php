@@ -22,6 +22,7 @@ use App\Services\RewardService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class EscrowController extends Controller
@@ -382,24 +383,38 @@ class EscrowController extends Controller
 
                 // Generate payment link if callback URL provided
                 $paymentUrl = null;
+                $paymentError = null;
                 if ($request->filled('callback_url')) {
                     try {
                         $token = $request->get('api_token');
-                        $result = $this->paymentService->createTransactionWithPayment(
-                            transactionData: $tranx->toArray(),
+                        $result = $this->paymentService->createPaymentForTransaction(
+                            transaction: $tranx,
                             customerEmail: $request['customer_email'],
                             customerName: $request['customer_name'] ?? $request['customer_email'],
                             callbackUrl: $request['callback_url'],
                             token: $token,
                         );
                         $paymentUrl = $result['payment_url'];
+                        $tranx = $tranx->fresh();
                     } catch (Exception $e) {
-                        // Transaction created but payment link failed
+                        // The transaction record stands, but the buyer has no way to
+                        // pay for it — surface that instead of reporting success.
+                        $paymentError = $e->getMessage();
                     }
                 }
 
                 $response = $this->getResponse($tranx);
                 $response['payment_url'] = $paymentUrl;
+
+                if ($paymentError !== null) {
+                    $response['payment_error'] = $paymentError;
+
+                    return response()->json([
+                        "ResponseStatus" => "Unsuccessful: transaction created but payment link failed",
+                        "ResponseCode" => 502,
+                        "ResponseMessage" => $response,
+                    ], 502);
+                }
 
                 return response()->json([
                     "ResponseStatus" => "successful",
@@ -457,9 +472,17 @@ class EscrowController extends Controller
                 ], 404);
             }
 
+            if ($tranx->payment_status === 'Paid') {
+                return response()->json([
+                    "ResponseStatus" => "Unsuccessful",
+                    "ResponseCode" => 400,
+                    "ResponseMessage" => 'Transaction has already been paid.',
+                ], 400);
+            }
+
             $token = $request->get('api_token');
-            $result = $this->paymentService->createTransactionWithPayment(
-                transactionData: $tranx->toArray(),
+            $result = $this->paymentService->createPaymentForTransaction(
+                transaction: $tranx,
                 customerEmail: $tranx->customer_email,
                 customerName: $tranx->customer_email,
                 callbackUrl: $request['callback_url'],
@@ -500,52 +523,141 @@ class EscrowController extends Controller
                 default => throw new \Exception("Unsupported gateway: {$gateway}"),
             };
 
+            // Reject anything the gateway did not sign. The payment is still
+            // re-verified against the gateway API below, but an unsigned request
+            // should never reach that far.
+            // Symfony's HeaderBag already lower-cases its keys; flatten each
+            // value to the first entry so gateways can read them directly.
+            $headers = [];
+            foreach ($request->headers->all() as $key => $values) {
+                $headers[$key] = is_array($values) ? ($values[0] ?? '') : $values;
+            }
+
+            $signatureValid = $this->paymentService
+                ->getGateway($gateway)
+                ->verifyWebhookSignature($request->getContent(), $headers);
+
+            if (!$signatureValid) {
+                Log::warning('Rejected unsigned payment webhook', [
+                    'gateway' => $gateway,
+                    'reference' => $reference,
+                    'ip' => $request->ip(),
+                ]);
+
+                return response()->json(['status' => 'error', 'message' => 'Invalid signature'], 401);
+            }
+
             if (!$reference) {
                 return response()->json(['status' => 'error', 'message' => 'No reference provided'], 400);
             }
 
             $result = $this->paymentService->verifyTransactionPayment($reference);
 
-            // Auto-earn rewards on successful payment
-            if ($result['status'] === 'success' || $result['status'] === 'successful') {
-                $transaction = \App\Models\Transaction::where('transcode', $reference)->first();
-                if ($transaction) {
-                    $merchant = \App\Models\Merchant::find($transaction->appid);
-                    if ($merchant) {
-                        try {
-                            $this->rewardService->earnOnTransaction($transaction, $merchant);
-                        } catch (\Exception $e) {
-                            // Reward earning is non-blocking
-                        }
-                    }
-                }
-            }
-
-            // Notify merchant of payment received
-            if ($result['status'] === 'success' || $result['status'] === 'successful') {
-                $transaction = \App\Models\Transaction::where('transcode', $reference)->first();
-                if ($transaction) {
-                    $merchant = \App\Models\Merchant::find($transaction->appid);
-                    if ($merchant) {
-                        try {
-                            $service = app(\App\Services\NotificationService::class);
-                            $service->notifyPaymentReceived($merchant, [
-                                'transcode' => $transaction->transcode,
-                                'amount' => $transaction->amount,
-                                'customer_email' => $transaction->customer_email,
-                                'reference_type' => 'transaction',
-                                'reference_id' => $transaction->id,
-                            ]);
-                        } catch (\Exception $e) {
-                            // Notification is non-blocking
-                        }
-                    }
-                }
+            if (($result['status'] === 'success' || $result['status'] === 'successful')
+                && empty($result['already_processed'])) {
+                $this->onPaymentConfirmed($reference);
             }
 
             return response()->json(['status' => 'success', 'data' => $result]);
         } catch (Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Verify a card payment by reference.
+     *
+     * Called by the merchant when the buyer is redirected back to their
+     * callback_url, so they do not have to wait for the gateway webhook.
+     * Safe to call repeatedly — the underlying verify is idempotent.
+     */
+    public function verifyPayment(Request $request)
+    {
+        $rules = [
+            'appid' => 'required|string',
+            'referenceid' => 'required|string',
+        ];
+
+        $validator = Validator::make($request->all(), $rules);
+
+        if ($validator->fails()) {
+            return response()->json([
+                "ResponseStatus" => "Unsuccessful",
+                "ResponseCode" => 400,
+                "ResponseMessage" => $validator->errors(),
+            ], 400);
+        }
+
+        try {
+            $tranx = Transaction::where([
+                ['transcode', $request['referenceid']],
+                ['appid', $request['appid']],
+            ])->first();
+
+            if (is_null($tranx)) {
+                return response()->json([
+                    "ResponseStatus" => "Unsuccessful",
+                    "ResponseCode" => 404,
+                    "ResponseMessage" => 'Transaction not found.',
+                ], 404);
+            }
+
+            $result = $this->paymentService->verifyTransactionPayment($tranx->transcode);
+
+            if (($result['status'] === 'success' || $result['status'] === 'successful')
+                && empty($result['already_processed'])) {
+                $this->onPaymentConfirmed($tranx->transcode);
+            }
+
+            $response = $this->getResponse($tranx->fresh());
+            $response['payment_verification_status'] = $result['status'];
+            $response['amount_paid'] = $result['amount'] ?? null;
+
+            return response()->json([
+                "ResponseStatus" => "successful",
+                "ResponseCode" => 0,
+                "ResponseMessage" => $response,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                "ResponseStatus" => "Unsuccessful",
+                "ResponseCode" => 500,
+                "ResponseMessage" => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Side effects that run once, the first time a payment is confirmed.
+     */
+    protected function onPaymentConfirmed(string $reference): void
+    {
+        $transaction = Transaction::where('transcode', $reference)->first();
+        if (!$transaction) {
+            return;
+        }
+
+        $merchant = \App\Models\Merchant::find($transaction->appid);
+        if (!$merchant) {
+            return;
+        }
+
+        try {
+            $this->rewardService->earnOnTransaction($transaction, $merchant);
+        } catch (Exception $e) {
+            // Reward earning is non-blocking
+        }
+
+        try {
+            app(\App\Services\NotificationService::class)->notifyPaymentReceived($merchant, [
+                'transcode' => $transaction->transcode,
+                'amount' => $transaction->amount,
+                'customer_email' => $transaction->customer_email,
+                'reference_type' => 'transaction',
+                'reference_id' => $transaction->id,
+            ]);
+        } catch (Exception $e) {
+            // Notification is non-blocking
         }
     }
 

@@ -9,12 +9,25 @@ class PaystackGateway implements PaymentGatewayInterface
 {
     protected \Yabacon\Paystack $paystack;
     protected string $publicKey;
+    protected string $secretKey;
 
     public function __construct(array $config)
     {
         $this->publicKey = $config['public_key'] ?? config('gateways.paystack.public_key');
-        $this->paystack = new \Yabacon\Paystack($config['secret_key'] ?? config('gateways.paystack.secret_key'));
+        $this->secretKey = $config['secret_key'] ?? config('gateways.paystack.secret_key');
+        $this->paystack = new \Yabacon\Paystack($this->secretKey);
         $this->paystack->useGuzzle();
+    }
+
+    public function verifyWebhookSignature(string $rawPayload, array $headers): bool
+    {
+        $signature = $headers['x-paystack-signature'] ?? '';
+
+        if ($signature === '' || $this->secretKey === '') {
+            return false;
+        }
+
+        return hash_equals(hash_hmac('sha512', $rawPayload, $this->secretKey), $signature);
     }
 
     public function createPaymentLink(
