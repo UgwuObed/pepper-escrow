@@ -86,4 +86,36 @@ class SettlementApiTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonPath('data.id', $settlement->id);
     }
+
+    public function test_processing_a_missing_settlement_returns_404_not_409(): void
+    {
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('api/client/settlements/0/process');
+
+        $response->assertStatus(404);
+        // ModelNotFoundException extends RuntimeException, so this used to fall
+        // into the 409 arm and leak the Eloquent class name to the caller.
+        $response->assertJsonPath('message', 'Settlement 0 not found.');
+    }
+
+    public function test_showing_a_missing_settlement_returns_404(): void
+    {
+        $response = $this->withHeaders($this->authHeaders())
+            ->getJson('api/client/settlements/999999');
+
+        $response->assertStatus(404);
+        $response->assertJsonPath('message', 'Settlement 999999 not found.');
+    }
+
+    public function test_a_settlement_belonging_to_another_merchant_is_not_visible(): void
+    {
+        $other = Settlement::factory()->create([
+            'merchant_id' => Merchant::factory()->create()->id,
+        ]);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->getJson("api/client/settlements/{$other->id}");
+
+        $response->assertStatus(404);
+    }
 }

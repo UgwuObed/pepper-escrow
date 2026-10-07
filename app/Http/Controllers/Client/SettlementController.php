@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Client;
 
+use App\Http\Controllers\Concerns\VerifiesGatewayWebhooks;
 use App\Http\Controllers\Controller;
 use App\Models\MerchantBankAccount;
 use App\Models\Settlement;
 use App\Services\SettlementService;
 use App\Services\TenantService;
 use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -15,6 +17,8 @@ use Illuminate\Support\Facades\Validator;
 
 class SettlementController extends Controller
 {
+    use VerifiesGatewayWebhooks;
+
     protected TenantService $tenantService;
     protected SettlementService $settlementService;
 
@@ -65,6 +69,11 @@ class SettlementController extends Controller
                 ->findOrFail($id);
 
             return response()->json(['status' => 'success', 'data' => $settlement]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Settlement {$id} not found.",
+            ], 404);
         } catch (Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
@@ -175,6 +184,14 @@ class SettlementController extends Controller
             $settlement = $this->settlementService->processSettlement($settlement);
 
             return response()->json(['status' => 'success', 'data' => $settlement->load('items.transaction')]);
+        } catch (ModelNotFoundException $e) {
+            // Must precede the RuntimeException arm below: ModelNotFoundException
+            // extends RuntimeException, so findOrFail would otherwise surface as
+            // a 409 state conflict and leak the model class to the caller.
+            return response()->json([
+                'status' => 'error',
+                'message' => "Settlement {$id} not found.",
+            ], 404);
         } catch (\RuntimeException $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 409);
         } catch (Exception $e) {
@@ -188,9 +205,14 @@ class SettlementController extends Controller
             $payload = $request->all();
             Log::info("Settlement webhook received from {$gateway}", $payload);
 
+            if (!$this->webhookIsAuthentic($request, $gateway)) {
+                return response()->json(['status' => 'error', 'message' => 'Invalid signature'], 401);
+            }
+
             $settlement = match ($gateway) {
                 'paystack' => $this->settlementService->handlePaystackTransferWebhook($payload),
                 'flutterwave' => $this->settlementService->handleFlutterwaveTransferWebhook($payload),
+                'vfd' => $this->settlementService->handleVfdTransferWebhook($payload),
                 default => throw new \Exception("Unsupported gateway: {$gateway}"),
             };
 

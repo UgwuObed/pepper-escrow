@@ -8,10 +8,14 @@ use App\Models\VirtualAccount;
 use App\PaymentGateways\Contracts\PaymentGatewayInterface;
 use App\PaymentGateways\FlutterwaveGateway;
 use App\PaymentGateways\PaystackGateway;
+use App\PaymentGateways\VfdGateway;
 use Illuminate\Support\Facades\Log;
 
 class VirtualAccountService
 {
+    /** Gateways that can issue a virtual account at all. */
+    public const VA_CAPABLE_GATEWAYS = ['vfd', 'paystack', 'flutterwave'];
+
     protected EscrowPaymentService $paymentService;
 
     public function __construct(EscrowPaymentService $paymentService)
@@ -19,20 +23,49 @@ class VirtualAccountService
         $this->paymentService = $paymentService;
     }
 
+    /**
+     * Which provider issues the account number. Falls back to the transaction's
+     * own gateway only when that gateway can actually issue virtual accounts —
+     * a card-only gateway like Stripe must not win over the VA default.
+     */
+    protected function resolveGateway(Transaction $transaction): string
+    {
+        $default = config('escrow.default_va_gateway', config('escrow.default_gateway'));
+        $onTransaction = $transaction->payment_gateway;
+
+        if ($onTransaction && in_array($onTransaction, self::VA_CAPABLE_GATEWAYS, true)) {
+            return $onTransaction;
+        }
+
+        return $default;
+    }
+
+    /**
+     * Paystack and Flutterwave issue permanent accounts that can be handed to
+     * the same customer again; VFD issues one-time accounts bound to an exact
+     * amount, so reusing one would accept payment against a closed transaction.
+     */
+    protected function supportsAccountReuse(string $gateway): bool
+    {
+        return $gateway !== 'vfd';
+    }
+
     public function assignToTransaction(
         Transaction $transaction,
         Merchant $merchant,
         ?string $gateway = null,
     ): VirtualAccount {
-        $gateway = $gateway ?? $transaction->payment_gateway ?? config('escrow.default_gateway');
+        $gateway = $gateway ?? $this->resolveGateway($transaction);
         $customerEmail = $transaction->customer_email;
         $customerName = $transaction->customer_email;
 
-        $existing = VirtualAccount::byCustomer($customerEmail)
-            ->byGateway($gateway)
-            ->active()
-            ->where('merchant_id', $merchant->id)
-            ->first();
+        $existing = $this->supportsAccountReuse($gateway)
+            ? VirtualAccount::byCustomer($customerEmail)
+                ->byGateway($gateway)
+                ->active()
+                ->where('merchant_id', $merchant->id)
+                ->first()
+            : null;
 
         if ($existing) {
             $existing->update([
@@ -53,8 +86,11 @@ class VirtualAccountService
         $vaData = match ($gateway) {
             'paystack' => $this->createPaystackDVA($gwInstance, $customerEmail, $customerName),
             'flutterwave' => $this->createFlutterwaveVAF($gwInstance, $customerEmail, $customerName, $transaction->transcode),
+            'vfd' => $this->createVfdVirtualAccount($gwInstance, $transaction, $customerEmail),
             default => throw new \InvalidArgumentException("Gateway '{$gateway}' does not support virtual accounts"),
         };
+
+        $isPermanent = $this->supportsAccountReuse($gateway);
 
         $virtualAccount = VirtualAccount::create([
             'merchant_id' => $merchant->id,
@@ -67,7 +103,8 @@ class VirtualAccountService
             'bank_name' => $vaData['bank_name'],
             'provider_reference' => $vaData['provider_reference'],
             'status' => 'assigned',
-            'is_permanent' => true,
+            'is_permanent' => $isPermanent,
+            'expires_at' => $isPermanent ? null : now()->addDays(7),
         ]);
 
         $transaction->update([
@@ -83,7 +120,7 @@ class VirtualAccountService
         Merchant $merchant,
         ?string $gateway = null,
     ): VirtualAccount {
-        $gateway = $gateway ?? $transaction->payment_gateway ?? config('escrow.default_gateway');
+        $gateway = $gateway ?? $this->resolveGateway($transaction);
         $customerEmail = $transaction->customer_email;
         $customerName = $transaction->customer_email;
 
@@ -92,6 +129,7 @@ class VirtualAccountService
         $vaData = match ($gateway) {
             'paystack' => $this->createPaystackDVA($gwInstance, $customerEmail, $customerName),
             'flutterwave' => $this->createFlutterwaveVAF($gwInstance, $customerEmail, $customerName, $transaction->transcode),
+            'vfd' => $this->createVfdVirtualAccount($gwInstance, $transaction, $customerEmail),
             default => throw new \InvalidArgumentException("Gateway '{$gateway}' does not support virtual accounts"),
         };
 
@@ -223,6 +261,80 @@ class VirtualAccountService
         return $transaction;
     }
 
+    /**
+     * VFD inward credit notification. Unlike Paystack/Flutterwave there is no
+     * event name to switch on — the payload is a credit or it is nothing — and
+     * the virtual account number is the only link back to the transaction.
+     */
+    public function handleVfdCredit(array $payload): ?Transaction
+    {
+        if (($payload['status'] ?? null) !== '00') {
+            return null;
+        }
+
+        $data = $payload['data'] ?? [];
+        $accountNumber = $data['accountNo'] ?? null;
+
+        if (!$accountNumber) {
+            Log::warning('VFD credit webhook missing account number');
+            return null;
+        }
+
+        $va = VirtualAccount::byGateway('vfd')
+            ->where('account_number', $accountNumber)
+            ->active()
+            ->first();
+
+        if (!$va || !$va->transaction_id) {
+            Log::info('VFD credit webhook: no matching assigned VA found', [
+                'account' => $accountNumber,
+            ]);
+            return null;
+        }
+
+        $transaction = Transaction::find($va->transaction_id);
+        if (!$transaction) {
+            return null;
+        }
+
+        $paid = (float) ($data['amount'] ?? 0);
+        $expected = (float) $transaction->amount;
+
+        // VFD accounts are amount-bound, so a short payment means something is
+        // wrong upstream. Record it but do not open the escrow.
+        if ($paid + 0.01 < $expected) {
+            Log::warning('VFD credit underpaid; leaving transaction unfunded', [
+                'transaction' => $transaction->id,
+                'expected' => $expected,
+                'paid' => $paid,
+            ]);
+
+            $transaction->update([
+                'payment_status' => 'PartiallyPaid',
+                'amountpaid' => $paid,
+                'gateway_response' => json_encode($data),
+            ]);
+
+            return null;
+        }
+
+        $transaction->update([
+            'payment_status' => 'Paid',
+            'trans_status' => 'Open',
+            'payment_date' => now(),
+            'payment_gateway' => 'vfd',
+            'gateway_reference' => $data['reference'] ?? $transaction->gateway_reference,
+            'amountpaid' => $paid,
+            'gateway_response' => json_encode($data),
+        ]);
+
+        // One-time account: it has served its purpose and must never take a
+        // second payment.
+        $va->update(['status' => 'closed']);
+
+        return $transaction;
+    }
+
     public function deactivate(VirtualAccount $va): void
     {
         $gateway = $va->gateway;
@@ -230,7 +342,7 @@ class VirtualAccountService
 
         match ($gateway) {
             'paystack' => $gwInstance->deactivateDedicatedAccount($va->provider_reference),
-            'flutterwave' => $gwInstance->deactivateVirtualAccount($va->provider_reference),
+            'flutterwave', 'vfd' => $gwInstance->deactivateVirtualAccount($va->provider_reference),
             default => throw new \InvalidArgumentException("Unsupported gateway: {$gateway}"),
         };
 
@@ -256,6 +368,26 @@ class VirtualAccountService
             throw new \RuntimeException('Gateway is not Paystack');
         }
         return $gw->createDedicatedAccount($email, $name);
+    }
+
+    /**
+     * VFD accounts are amount-bound, so the transaction total is part of the
+     * request rather than something we reconcile afterwards.
+     */
+    protected function createVfdVirtualAccount(
+        PaymentGatewayInterface $gw,
+        Transaction $transaction,
+        string $email,
+    ): array {
+        if (!$gw instanceof VfdGateway) {
+            throw new \RuntimeException('Gateway is not VFD');
+        }
+
+        return $gw->createTemporaryVirtualAccount(
+            (float) $transaction->amount,
+            $email,
+            $transaction->customer_phone ?? null,
+        );
     }
 
     protected function createFlutterwaveVAF(PaymentGatewayInterface $gw, string $email, string $name, string $txRef): array

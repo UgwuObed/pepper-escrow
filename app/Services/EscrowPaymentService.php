@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ApiToken;
 use App\Models\Transaction;
 use App\PaymentGateways\Contracts\PaymentGatewayInterface;
+use App\PaymentGateways\VfdGateway;
 use Illuminate\Support\Facades\Log;
 
 class EscrowPaymentService
@@ -14,6 +15,11 @@ class EscrowPaymentService
     public function registerGateway(string $key, PaymentGatewayInterface $gateway): void
     {
         $this->gateways[$key] = $gateway;
+    }
+
+    public function hasGateway(string $key): bool
+    {
+        return isset($this->gateways[$key]);
     }
 
     public function getGateway(?string $key = null): PaymentGatewayInterface
@@ -175,10 +181,19 @@ class EscrowPaymentService
         return $result;
     }
 
-    public function processEscrowRefund(Transaction $transaction, string $reason = ''): array
+    /**
+     * @param array{account_number: string, bank_code: string}|null $destination
+     *        Where to send a VFD refund. Ignored by card gateways, which refund
+     *        to the original payment instrument.
+     */
+    public function processEscrowRefund(Transaction $transaction, string $reason = '', ?array $destination = null): array
     {
         $gatewayKey = $transaction->payment_gateway ?? config('escrow.default_gateway');
         $gateway = $this->getGateway($gatewayKey);
+
+        if ($gateway instanceof VfdGateway) {
+            return $this->processVfdRefund($gateway, $transaction, $reason, $destination);
+        }
 
         $gatewayRef = $transaction->gateway_reference ?? $transaction->transcode;
 
@@ -193,5 +208,100 @@ class EscrowPaymentService
         }
 
         return $result;
+    }
+
+    /**
+     * VFD has no refund API — money goes back as an ordinary outbound transfer
+     * from the pool account.
+     *
+     * The destination has to be explicit or recoverable from the inward credit
+     * we recorded. VFD's credit notification carries the sender's account
+     * number but not their bank, so a cross-bank payer cannot be reversed
+     * automatically; callers must pass a destination in that case rather than
+     * have us guess a bank code and pay a stranger.
+     *
+     * @param array{account_number: string, bank_code: string}|null $destination
+     */
+    protected function processVfdRefund(
+        VfdGateway $gateway,
+        Transaction $transaction,
+        string $reason,
+        ?array $destination,
+    ): array {
+        $destination = $destination ?? $this->recordedVfdSender($transaction);
+
+        if (!$destination) {
+            throw new \InvalidArgumentException(
+                'A VFD refund needs an explicit destination (account_number and bank_code): '
+                . 'the original credit did not record a reversible sender account.'
+            );
+        }
+
+        $reference = 'RFD-' . $transaction->transcode . '-' . substr((string) time(), -6);
+
+        $result = $gateway->initiateTransfer(
+            $destination,
+            (float) $transaction->amount,
+            $reference,
+            $reason !== '' ? $reason : "Refund for {$transaction->transcode}",
+        );
+
+        $transaction->update([
+            'refunded' => 1,
+            'trans_status' => 'Closed',
+            'refund_date' => now(),
+            'gateway_reference' => $result['transfer_code'] ?? $reference,
+        ]);
+
+        Log::info('VFD refund initiated', [
+            'transaction' => $transaction->transcode,
+            'reference' => $reference,
+            'amount' => (float) $transaction->amount,
+        ]);
+
+        return [
+            'status' => 'refund_initiated',
+            'reference' => $result['transfer_code'] ?? $reference,
+            'message' => 'Refund transfer initiated',
+        ];
+    }
+
+    /**
+     * Recover the payer's account from the stored credit notification. Only
+     * usable when the payment came from inside VFD, since that is the one case
+     * where we can infer the bank code.
+     *
+     * @return array{account_number: string, bank_code: string}|null
+     */
+    protected function recordedVfdSender(Transaction $transaction): ?array
+    {
+        $raw = $transaction->gateway_response;
+
+        if (!$raw) {
+            return null;
+        }
+
+        $data = is_array($raw) ? $raw : json_decode((string) $raw, true);
+
+        if (!is_array($data)) {
+            return null;
+        }
+
+        $senderAccount = $data['senderAccountNo'] ?? null;
+        $senderBank = $data['senderBank'] ?? $data['fromBank'] ?? null;
+
+        if (!$senderAccount) {
+            return null;
+        }
+
+        if (!$senderBank) {
+            // No bank on the notification means we cannot safely route this.
+            return null;
+        }
+
+        return [
+            'account_number' => (string) $senderAccount,
+            'bank_code' => (string) $senderBank,
+        ];
     }
 }
