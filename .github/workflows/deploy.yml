@@ -79,4 +79,11 @@ jobs:
 
             docker compose build --no-cache app
             docker compose up -d --force-recreate
+
+            # --no-cache writes a fresh build cache on every deploy, and
+            # `image prune -f` only removes dangling images, never that cache.
+            # Without this the root volume fills up over a few weeks and the
+            # origin stops answering.
             docker image prune -f
+            docker builder prune -af
+            df -h /
