@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\VerifiesGatewayWebhooks;
 use App\Http\Controllers\Controller;
 use App\Models\ConnectedAccount;
 use App\Services\ConnectedAccountService;
+use App\Services\SellerDashboardService;
 use App\Services\TenantService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -161,6 +162,58 @@ class ConnectedAccountController extends Controller
             return response()->json(['status' => 'ok', 'message' => "Unhandled event {$type}"]);
         } catch (Exception $e) {
             Log::error('Stripe Connect webhook error', ['error' => $e->getMessage()]);
+
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+
+    /**
+     * Everything the seller can see about their own money.
+     *
+     * They have no Stripe dashboard under this configuration, so this is the
+     * only place they can look.
+     */
+    public function dashboard(Request $request, int $id, SellerDashboardService $dashboard): JsonResponse
+    {
+        try {
+            $account = $this->findForMerchant($request, $id);
+
+            return response()->json(['status' => 'success', 'data' => $dashboard->forAccount($account)]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['status' => 'error', 'message' => "Connected account {$id} not found."], 404);
+        } catch (Exception $e) {
+            Log::error('Seller dashboard failed', ['id' => $id, 'error' => $e->getMessage()]);
+
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * A short-lived secret for Stripe's embedded components.
+     *
+     * Bank details and identity data are things Peppa is barred from
+     * touching, so the seller edits them through Stripe's own UI embedded in
+     * the partner's page.
+     */
+    public function accountSession(Request $request, int $id): JsonResponse
+    {
+        try {
+            $account = $this->findForMerchant($request, $id);
+
+            $components = $request->input('components', ['payouts', 'account_management']);
+
+            if (!is_array($components) || empty($components)) {
+                return response()->json(['status' => 'error', 'message' => 'components must be a non-empty array.'], 422);
+            }
+
+            $session = $this->accounts->embeddedSession($account, $components);
+
+            return response()->json(['status' => 'success', 'data' => $session]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['status' => 'error', 'message' => "Connected account {$id} not found."], 404);
+        } catch (Exception $e) {
+            Log::error('Account session failed', ['id' => $id, 'error' => $e->getMessage()]);
 
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }

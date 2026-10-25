@@ -339,6 +339,37 @@ class StripeConnectGateway implements PaymentGatewayInterface
         return $payouts;
     }
 
+    /**
+     * A session for Stripe's embedded components.
+     *
+     * Sellers have no Stripe dashboard under this configuration, and Peppa is
+     * barred from touching their bank details or identity data. Embedding
+     * Stripe's own components is therefore the only way a seller can manage
+     * those things, short of Peppa building a UI it has no permission to
+     * back.
+     *
+     * @param array<int, string> $components
+     */
+    public function createAccountSession(string $accountId, array $components = ['payouts', 'account_management']): array
+    {
+        $enabled = [];
+
+        foreach ($components as $component) {
+            $enabled[$component] = ['enabled' => true];
+        }
+
+        $session = \Stripe\AccountSession::create([
+            'account' => $accountId,
+            'components' => $enabled,
+        ]);
+
+        return [
+            'client_secret' => $session->client_secret,
+            'expires_at' => $session->expires_at,
+            'components' => array_keys($enabled),
+        ];
+    }
+
     // ─── PaymentGatewayInterface ──────────────────────────────────────
 
     /**
