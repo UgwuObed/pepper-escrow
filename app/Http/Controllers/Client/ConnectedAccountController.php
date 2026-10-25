@@ -1,0 +1,253 @@
+<?php
+
+namespace App\Http\Controllers\Client;
+
+use App\Http\Controllers\Concerns\VerifiesGatewayWebhooks;
+use App\Http\Controllers\Controller;
+use App\Models\ConnectedAccount;
+use App\Services\ConnectedAccountService;
+use App\Services\SellerDashboardService;
+use App\Services\TenantService;
+use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+
+class ConnectedAccountController extends Controller
+{
+    use VerifiesGatewayWebhooks;
+
+    protected TenantService $tenantService;
+    protected ConnectedAccountService $accounts;
+
+    public function __construct(TenantService $tenantService, ConnectedAccountService $accounts)
+    {
+        $this->tenantService = $tenantService;
+        $this->accounts = $accounts;
+    }
+
+    /**
+     * Create the seller's Stripe account and return a link for them to finish
+     * Stripe's own onboarding.
+     */
+    public function create(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'seller_email' => 'required|email',
+            'country' => 'required|string|size:2',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'message' => $validator->errors()->first()], 422);
+        }
+
+        try {
+            $merchant = $this->tenantService->getMerchantFromRequest($request);
+            if (!$merchant) {
+                return response()->json(['status' => 'error', 'message' => 'Merchant not found.'], 404);
+            }
+
+            $account = $this->accounts->onboard(
+                $merchant,
+                $request->input('seller_email'),
+                $request->input('country'),
+            );
+
+            $link = $this->accounts->onboardingLink($account);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'account' => $this->present($account),
+                    'onboarding_url' => $link['url'],
+                    'onboarding_expires_at' => $link['expires_at'],
+                ],
+            ], 201);
+        } catch (Exception $e) {
+            Log::error('Connected account creation failed', ['error' => $e->getMessage()]);
+
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function list(Request $request): JsonResponse
+    {
+        $merchant = $this->tenantService->getMerchantFromRequest($request);
+        if (!$merchant) {
+            return response()->json(['status' => 'error', 'message' => 'Merchant not found.'], 404);
+        }
+
+        $accounts = ConnectedAccount::byMerchant($merchant->id)->get()
+            ->map(fn (ConnectedAccount $a) => $this->present($a));
+
+        return response()->json(['status' => 'success', 'data' => $accounts]);
+    }
+
+    public function show(Request $request, int $id): JsonResponse
+    {
+        try {
+            $account = $this->findForMerchant($request, $id);
+
+            return response()->json(['status' => 'success', 'data' => $this->present($account)]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['status' => 'error', 'message' => "Connected account {$id} not found."], 404);
+        } catch (Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * A fresh onboarding link. Stripe's expire in minutes, so sellers who
+     * abandon the flow need a new one rather than the stored one.
+     */
+    public function onboardingLink(Request $request, int $id): JsonResponse
+    {
+        try {
+            $account = $this->findForMerchant($request, $id);
+            $link = $this->accounts->onboardingLink($account);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => ['onboarding_url' => $link['url'], 'expires_at' => $link['expires_at']],
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['status' => 'error', 'message' => "Connected account {$id} not found."], 404);
+        } catch (Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function sync(Request $request, int $id): JsonResponse
+    {
+        try {
+            $account = $this->accounts->syncStatus($this->findForMerchant($request, $id));
+
+            return response()->json(['status' => 'success', 'data' => $this->present($account)]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['status' => 'error', 'message' => "Connected account {$id} not found."], 404);
+        } catch (Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Stripe Connect account and payout events. Public, so the signature is
+     * the only thing establishing who sent it.
+     */
+    public function webhook(Request $request): JsonResponse
+    {
+        try {
+            if (!$this->webhookIsAuthentic($request, 'stripe_connect')) {
+                return response()->json(['status' => 'error', 'message' => 'Invalid signature'], 401);
+            }
+
+            $payload = $request->all();
+            $type = $payload['type'] ?? '';
+
+            Log::info('Stripe Connect webhook', ['type' => $type]);
+
+            if ($type === 'account.updated') {
+                $account = $this->accounts->handleAccountUpdated($payload);
+
+                return response()->json([
+                    'status' => 'success',
+                    'account' => $account?->account_id,
+                ]);
+            }
+
+            // Payout events belong to the release side of the flow, which the
+            // rules engine owns. Acknowledged here so Stripe stops retrying.
+            return response()->json(['status' => 'ok', 'message' => "Unhandled event {$type}"]);
+        } catch (Exception $e) {
+            Log::error('Stripe Connect webhook error', ['error' => $e->getMessage()]);
+
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+
+    /**
+     * Everything the seller can see about their own money.
+     *
+     * They have no Stripe dashboard under this configuration, so this is the
+     * only place they can look.
+     */
+    public function dashboard(Request $request, int $id, SellerDashboardService $dashboard): JsonResponse
+    {
+        try {
+            $account = $this->findForMerchant($request, $id);
+
+            return response()->json(['status' => 'success', 'data' => $dashboard->forAccount($account)]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['status' => 'error', 'message' => "Connected account {$id} not found."], 404);
+        } catch (Exception $e) {
+            Log::error('Seller dashboard failed', ['id' => $id, 'error' => $e->getMessage()]);
+
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * A short-lived secret for Stripe's embedded components.
+     *
+     * Bank details and identity data are things Peppa is barred from
+     * touching, so the seller edits them through Stripe's own UI embedded in
+     * the partner's page.
+     */
+    public function accountSession(Request $request, int $id): JsonResponse
+    {
+        try {
+            $account = $this->findForMerchant($request, $id);
+
+            $components = $request->input('components', ['payouts', 'account_management']);
+
+            if (!is_array($components) || empty($components)) {
+                return response()->json(['status' => 'error', 'message' => 'components must be a non-empty array.'], 422);
+            }
+
+            $session = $this->accounts->embeddedSession($account, $components);
+
+            return response()->json(['status' => 'success', 'data' => $session]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['status' => 'error', 'message' => "Connected account {$id} not found."], 404);
+        } catch (Exception $e) {
+            Log::error('Account session failed', ['id' => $id, 'error' => $e->getMessage()]);
+
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    protected function findForMerchant(Request $request, int $id): ConnectedAccount
+    {
+        $merchant = $this->tenantService->getMerchantFromRequest($request);
+
+        if (!$merchant) {
+            throw new ModelNotFoundException();
+        }
+
+        return ConnectedAccount::byMerchant($merchant->id)->findOrFail($id);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function present(ConnectedAccount $account): array
+    {
+        return [
+            'id' => $account->id,
+            'account_id' => $account->account_id,
+            'seller_email' => $account->seller_email,
+            'country' => $account->country,
+            'charges_enabled' => $account->charges_enabled,
+            'payouts_enabled' => $account->payouts_enabled,
+            'details_submitted' => $account->details_submitted,
+            'holding_period_days' => $account->holding_period_days,
+            'can_hold_funds' => $account->canHoldFunds(),
+            'hold_blockers' => $account->holdBlockers(),
+            'requirements_due' => $account->requirements_due ?? [],
+            'status_synced_at' => $account->status_synced_at,
+        ];
+    }
+}
