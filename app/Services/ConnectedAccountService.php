@@ -68,12 +68,16 @@ class ConnectedAccountService
      * A fresh onboarding link. These expire in minutes, so generate one per
      * visit rather than storing it.
      */
-    public function onboardingLink(ConnectedAccount $account): array
+    public function onboardingLink(ConnectedAccount $account, ?string $refreshUrl = null, ?string $returnUrl = null): array
     {
         return $this->gateway()->createOnboardingLink(
             $account->account_id,
-            config('gateways.stripe_connect.onboarding_refresh_url') ?: url('/connect/refresh'),
-            config('gateways.stripe_connect.onboarding_return_url') ?: url('/connect/return'),
+            $refreshUrl
+                ?: config('gateways.stripe_connect.onboarding_refresh_url')
+                ?: url('/connect/refresh'),
+            $returnUrl
+                ?: config('gateways.stripe_connect.onboarding_return_url')
+                ?: url('/connect/return'),
         );
     }
 

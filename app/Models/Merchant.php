@@ -18,7 +18,27 @@ class Merchant extends Authenticatable
         'website',
         'webhook_url',
         'status',
+        'seller_onboarding_token',
+        'seller_onboarding_enabled',
     ];
+
+    /**
+     * The public link a partner gives their sellers. Minted on first use so
+     * existing merchants do not need backfilling.
+     */
+    public function sellerOnboardingToken(): string
+    {
+        if (!$this->seller_onboarding_token) {
+            $this->forceFill(['seller_onboarding_token' => \Illuminate\Support\Str::random(32)])->save();
+        }
+
+        return $this->seller_onboarding_token;
+    }
+
+    public function sellerOnboardingUrl(): string
+    {
+        return url('/connect/' . $this->sellerOnboardingToken());
+    }
 
     protected $hidden = [
         'password',
