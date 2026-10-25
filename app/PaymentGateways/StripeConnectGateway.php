@@ -299,6 +299,46 @@ class StripeConnectGateway implements PaymentGatewayInterface
         ];
     }
 
+    /**
+     * Payouts Stripe has made on a seller account, for reconciliation.
+     *
+     * Paged through to the end rather than taking the first 100: a partial
+     * list reads as money Stripe never paid out, which is exactly the kind of
+     * false discrepancy that teaches people to ignore the report.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function listPayouts(string $accountId, int $pageSize = 100): array
+    {
+        $payouts = [];
+        $startingAfter = null;
+
+        do {
+            $params = ['limit' => $pageSize];
+
+            if ($startingAfter) {
+                $params['starting_after'] = $startingAfter;
+            }
+
+            $page = Payout::all($params, ['stripe_account' => $accountId]);
+
+            foreach ($page->data as $payout) {
+                $payouts[] = [
+                    'id' => $payout->id,
+                    'amount' => $this->fromMinorUnits((int) $payout->amount, (string) $payout->currency),
+                    'currency' => strtoupper((string) $payout->currency),
+                    'status' => $payout->status,
+                    'arrival_date' => $payout->arrival_date,
+                    'created' => $payout->created,
+                    'metadata' => $payout->metadata ? $payout->metadata->toArray() : [],
+                ];
+                $startingAfter = $payout->id;
+            }
+        } while ($page->has_more);
+
+        return $payouts;
+    }
+
     // ─── PaymentGatewayInterface ──────────────────────────────────────
 
     /**
