@@ -112,6 +112,9 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     Route::get('/transactions/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'transactionDetail'])->name('transaction.detail');
     Route::get('/settlements', [\App\Http\Controllers\Admin\AdminController::class, 'settlements'])->name('settlements');
     Route::get('/settlements/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'settlementDetail'])->name('settlement.detail');
+    Route::get('/holds', [\App\Http\Controllers\Admin\AdminController::class, 'holds'])->name('holds');
+    Route::get('/holds/reconciliation', [\App\Http\Controllers\Admin\AdminController::class, 'reconciliation'])->name('holds.reconciliation');
+    Route::get('/holds/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'holdDetail'])->name('hold.detail');
     Route::get('/notifications', [\App\Http\Controllers\Admin\AdminController::class, 'notificationLogs'])->name('notifications');
     Route::get('/revenue', [\App\Http\Controllers\Admin\AdminController::class, 'revenue'])->name('revenue');
 });
