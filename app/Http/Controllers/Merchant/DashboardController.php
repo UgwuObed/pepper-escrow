@@ -72,6 +72,39 @@ class DashboardController extends Controller
         return view('merchant.api_keys', compact('merchant', 'apiToken'));
     }
 
+    /**
+     * Turn the hosted seller onboarding page on or off, and mint the link.
+     *
+     * Off by default: the page creates Stripe accounts and anyone with the
+     * link can reach it, so a partner opts in deliberately.
+     */
+    public function toggleSellerOnboarding(Request $request): RedirectResponse
+    {
+        $merchant = Auth::guard('merchant')->user();
+        $enable = $request->boolean('enable');
+
+        if ($enable) {
+            $merchant->sellerOnboardingToken();
+        }
+
+        $merchant->forceFill(['seller_onboarding_enabled' => $enable])->save();
+
+        return back()->with('status', $enable
+            ? 'Your seller sign-up link is live.'
+            : 'Your seller sign-up link is switched off.');
+    }
+
+    /**
+     * Replace the link, for when one has been shared too widely.
+     */
+    public function rotateSellerOnboardingLink(): RedirectResponse
+    {
+        $merchant = Auth::guard('merchant')->user();
+        $merchant->forceFill(['seller_onboarding_token' => \Illuminate\Support\Str::random(32)])->save();
+
+        return back()->with('status', 'New link generated. The old one no longer works.');
+    }
+
     public function regenerateKeys(Request $request): RedirectResponse
     {
         $merchant = Auth::guard('merchant')->user();

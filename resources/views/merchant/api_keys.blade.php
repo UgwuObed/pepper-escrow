@@ -47,6 +47,51 @@
         </form>
     </div>
 
+
+<div class="bg-white p-6 rounded-lg shadow mt-6">
+    <h2 class="text-xl font-bold mb-1">Seller sign-up link</h2>
+    <p class="text-sm text-gray-500 mb-4">
+        A page your sellers can use to set themselves up for payouts. Share it in an email or a help
+        article. Anyone with the link can start, so only switch it on when you are ready.
+    </p>
+
+@if (session('status'))
+    <div class="mb-4 px-3 py-2 bg-green-50 text-green-800 rounded text-sm">{{ session('status') }}</div>
+@endif
+
+@if ($merchant->seller_onboarding_enabled)
+    <div class="mb-3">
+        <label class="block text-gray-700 text-sm font-bold mb-2">Your link</label>
+        <div class="flex gap-2">
+            <input class="w-full px-3 py-2 border border-gray-300 rounded font-mono text-sm bg-gray-50"
+                   id="sellerLink" type="text" readonly value="{{ $merchant->sellerOnboardingUrl() }}">
+            <button type="button" onclick="copyToClipboard(document.getElementById('sellerLink').value)"
+                    class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300 whitespace-nowrap">Copy</button>
+        </div>
+    </div>
+    <div class="flex gap-2">
+        <form method="POST" action="{{ route('merchant.seller-onboarding.toggle') }}">
+            @csrf
+            <input type="hidden" name="enable" value="0">
+            <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300" type="submit">Switch off</button>
+        </form>
+        <form method="POST" action="{{ route('merchant.seller-onboarding.rotate') }}"
+              onsubmit="return confirm('The current link will stop working immediately. Continue?')">
+            @csrf
+            <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300" type="submit">Replace link</button>
+        </form>
+    </div>
+@else
+    <form method="POST" action="{{ route('merchant.seller-onboarding.toggle') }}">
+        @csrf
+        <input type="hidden" name="enable" value="1">
+        <button class="px-4 py-2 bg-blue-600 text-white font-bold rounded text-sm hover:bg-blue-700" type="submit">
+            Turn on seller sign-up
+        </button>
+    </form>
+@endif
+</div>
+
 <script>
 function toggleSecret() {
     const el = document.getElementById('fullSecret');
