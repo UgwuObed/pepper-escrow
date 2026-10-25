@@ -37,3 +37,16 @@ pause the clock.
 Built and tested in Stripe test mode. **The production account configuration has not yet
 carried a real charge** — that needs one seller onboarded by hand, since onboarding cannot
 be automated. See the [go-live checklist](go-live-checklist.md).
+
+## Testing
+
+[Postman collection](Peppa-Settlements.postman_collection.json) and
+[local environment](Peppa-Local.postman_environment.json) — 33 requests across 7 folders,
+ordered so each one feeds the next.
+
+Import both, set `base_url` and paste an `api_key` from the merchant dashboard, then work
+through the folders in order. Ids are captured into collection variables as you go, so the
+later requests need no editing.
+
+Folder 6 covers the error shapes (401, 404, 409, 422) and folder 7 the pre-existing escrow
+endpoints, so one collection covers the whole surface.
