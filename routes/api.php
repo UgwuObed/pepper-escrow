@@ -102,6 +102,54 @@ Route::group([
     Route::delete('{id}', [\App\Http\Controllers\Client\CommissionRuleController::class, 'destroy']);
 });
 
+// Seller connected accounts for conditional settlement (authenticated by API key)
+Route::group([
+    'prefix' => 'connected-accounts',
+    'middleware' => 'auth.api-key',
+], function () {
+    Route::post('/', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'create']);
+    Route::get('/', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'list']);
+    Route::get('{id}', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'show']);
+    Route::post('{id}/onboarding-link', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'onboardingLink']);
+    Route::post('{id}/sync', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'sync']);
+
+    // The seller's own view. They have no Stripe dashboard, so this is the
+    // only place they can see their balance, payouts and held funds.
+    Route::get('{id}/dashboard', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'dashboard']);
+    Route::post('{id}/account-session', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'accountSession']);
+});
+
+// Public Stripe Connect webhook (no API key — Stripe calls this, so the
+// signature is the only thing establishing who sent it)
+Route::post('stripe/connect/webhook', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'webhook']);
+
+// Held payments and the conditions that release them (authenticated by API key).
+// Addressed by the partner's own reference rather than our row id.
+Route::group([
+    'prefix' => 'holds',
+    'middleware' => 'auth.api-key',
+], function () {
+    Route::post('/', [\App\Http\Controllers\Client\SettlementHoldController::class, 'store']);
+    Route::get('/', [\App\Http\Controllers\Client\SettlementHoldController::class, 'index']);
+    Route::get('{reference}', [\App\Http\Controllers\Client\SettlementHoldController::class, 'show']);
+    Route::post('{reference}/confirm', [\App\Http\Controllers\Client\SettlementHoldController::class, 'confirm']);
+    Route::post('{reference}/approve', [\App\Http\Controllers\Client\SettlementHoldController::class, 'approve']);
+    Route::post('{reference}/dispute', [\App\Http\Controllers\Client\SettlementHoldController::class, 'dispute']);
+    Route::post('{reference}/dispute/resolve', [\App\Http\Controllers\Client\SettlementHoldController::class, 'resolveDispute']);
+    Route::post('{reference}/refund', [\App\Http\Controllers\Client\SettlementHoldController::class, 'refund']);
+});
+
+// Partner-configured release rules (authenticated by API key)
+Route::group([
+    'prefix' => 'settlement-rules',
+    'middleware' => 'auth.api-key',
+], function () {
+    Route::get('/', [\App\Http\Controllers\Client\SettlementRuleController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Client\SettlementRuleController::class, 'store']);
+    Route::put('{id}', [\App\Http\Controllers\Client\SettlementRuleController::class, 'update']);
+    Route::delete('{id}', [\App\Http\Controllers\Client\SettlementRuleController::class, 'destroy']);
+});
+
 // Bank Transfer / Virtual Accounts API (authenticated by API key)
 Route::group([
     'prefix' => 'client/bank-transfer',

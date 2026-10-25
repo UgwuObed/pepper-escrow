@@ -22,6 +22,11 @@ Route::prefix('merchant')->name('merchant.')->middleware('merchant.auth')->group
     Route::get('/dashboard', [\App\Http\Controllers\Merchant\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/api-keys', [\App\Http\Controllers\Merchant\DashboardController::class, 'showApiKeys'])->name('api-keys');
     Route::post('/api-keys/regenerate', [\App\Http\Controllers\Merchant\DashboardController::class, 'regenerateKeys'])->name('regenerate-keys');
+    Route::get('/api-docs', [\App\Http\Controllers\Merchant\DashboardController::class, 'apiDocs'])->name('api-docs');
+    Route::get('/api-docs/postman', [\App\Http\Controllers\Merchant\DashboardController::class, 'postmanCollection'])->name('api-docs.postman');
+    Route::get('/api-docs/postman-env', [\App\Http\Controllers\Merchant\DashboardController::class, 'postmanEnvironment'])->name('api-docs.postman-env');
+    Route::post('/seller-onboarding/toggle', [\App\Http\Controllers\Merchant\DashboardController::class, 'toggleSellerOnboarding'])->name('seller-onboarding.toggle');
+    Route::post('/seller-onboarding/rotate', [\App\Http\Controllers\Merchant\DashboardController::class, 'rotateSellerOnboardingLink'])->name('seller-onboarding.rotate');
     Route::get('/settings', [\App\Http\Controllers\Merchant\DashboardController::class, 'showSettings'])->name('settings');
     Route::post('/settings', [\App\Http\Controllers\Merchant\DashboardController::class, 'updateSettings'])->name('update-settings');
     Route::post('/settings/profile', [\App\Http\Controllers\Merchant\DashboardController::class, 'updateProfile'])->name('update-profile');
@@ -102,6 +107,20 @@ Route::group([
     Route::get('/Reports', 'BackendController@getReportPage')->name('escrow.reports');
 });
 
+/*
+| Hosted seller onboarding — public.
+|
+| Partners hand /connect/{token} to their sellers. Rate limited because the
+| page creates Stripe accounts and anyone can reach it; the partner must also
+| switch it on before the token resolves at all.
+*/
+Route::middleware('throttle:10,1')->group(function () {
+    Route::get('/connect/{token}', [\App\Http\Controllers\SellerOnboardingController::class, 'show'])->name('connect.start');
+    Route::post('/connect/{token}', [\App\Http\Controllers\SellerOnboardingController::class, 'start'])->name('connect.submit');
+    Route::get('/connect/{token}/refresh/{accountId}', [\App\Http\Controllers\SellerOnboardingController::class, 'refresh'])->name('connect.refresh');
+    Route::get('/connect/{token}/done/{accountId}', [\App\Http\Controllers\SellerOnboardingController::class, 'done'])->name('connect.done');
+});
+
 Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function () {
     Route::get('/', [\App\Http\Controllers\Admin\AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/dashboard', [\App\Http\Controllers\Admin\AdminController::class, 'dashboard']);
@@ -112,6 +131,9 @@ Route::prefix('admin')->name('admin.')->middleware('admin.auth')->group(function
     Route::get('/transactions/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'transactionDetail'])->name('transaction.detail');
     Route::get('/settlements', [\App\Http\Controllers\Admin\AdminController::class, 'settlements'])->name('settlements');
     Route::get('/settlements/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'settlementDetail'])->name('settlement.detail');
+    Route::get('/holds', [\App\Http\Controllers\Admin\AdminController::class, 'holds'])->name('holds');
+    Route::get('/holds/reconciliation', [\App\Http\Controllers\Admin\AdminController::class, 'reconciliation'])->name('holds.reconciliation');
+    Route::get('/holds/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'holdDetail'])->name('hold.detail');
     Route::get('/notifications', [\App\Http\Controllers\Admin\AdminController::class, 'notificationLogs'])->name('notifications');
     Route::get('/revenue', [\App\Http\Controllers\Admin\AdminController::class, 'revenue'])->name('revenue');
 });
