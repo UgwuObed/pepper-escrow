@@ -254,7 +254,11 @@ class StripeConnectGateway implements PaymentGatewayInterface
 
     public function getBalance(string $accountId): array
     {
-        $balance = Balance::retrieve([], ['stripe_account' => $accountId]);
+        // Balance is a singleton resource: retrieve() takes request options as
+        // its only argument. Passing params first silently drops the
+        // stripe_account option and returns the platform's balance instead of
+        // the seller's, which reads as plausible and is entirely wrong.
+        $balance = Balance::retrieve(['stripe_account' => $accountId]);
 
         $available = [];
         foreach ($balance->available as $entry) {
