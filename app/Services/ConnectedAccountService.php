@@ -77,6 +77,18 @@ class ConnectedAccountService
         );
     }
 
+
+    /**
+     * A session for Stripe's embedded components, so a seller can manage the
+     * things Peppa has no permission to touch.
+     *
+     * @param array<int, string> $components
+     */
+    public function embeddedSession(ConnectedAccount $account, array $components): array
+    {
+        return $this->gateway()->createAccountSession($account->account_id, $components);
+    }
+
     /**
      * Pull the account's current state from Stripe into our copy.
      */

@@ -112,6 +112,11 @@ Route::group([
     Route::get('{id}', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'show']);
     Route::post('{id}/onboarding-link', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'onboardingLink']);
     Route::post('{id}/sync', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'sync']);
+
+    // The seller's own view. They have no Stripe dashboard, so this is the
+    // only place they can see their balance, payouts and held funds.
+    Route::get('{id}/dashboard', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'dashboard']);
+    Route::post('{id}/account-session', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'accountSession']);
 });
 
 // Public Stripe Connect webhook (no API key — Stripe calls this, so the
