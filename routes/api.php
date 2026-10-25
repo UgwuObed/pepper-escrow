@@ -102,6 +102,22 @@ Route::group([
     Route::delete('{id}', [\App\Http\Controllers\Client\CommissionRuleController::class, 'destroy']);
 });
 
+// Seller connected accounts for conditional settlement (authenticated by API key)
+Route::group([
+    'prefix' => 'connected-accounts',
+    'middleware' => 'auth.api-key',
+], function () {
+    Route::post('/', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'create']);
+    Route::get('/', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'list']);
+    Route::get('{id}', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'show']);
+    Route::post('{id}/onboarding-link', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'onboardingLink']);
+    Route::post('{id}/sync', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'sync']);
+});
+
+// Public Stripe Connect webhook (no API key — Stripe calls this, so the
+// signature is the only thing establishing who sent it)
+Route::post('stripe/connect/webhook', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'webhook']);
+
 // Bank Transfer / Virtual Accounts API (authenticated by API key)
 Route::group([
     'prefix' => 'client/bank-transfer',
