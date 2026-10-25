@@ -24,7 +24,7 @@ class ConnectedAccountHoldTest extends TestCase
             'details_submitted' => true,
             'payout_schedule' => 'manual',
             'losses_payer' => 'stripe',
-            'dashboard_type' => 'express',
+            'dashboard_type' => 'none',
             'holding_period_days' => 90,
         ], $overrides));
     }
@@ -58,6 +58,18 @@ class ConnectedAccountHoldTest extends TestCase
     public function test_a_full_dashboard_blocks_the_hold(): void
     {
         $account = $this->account(['dashboard_type' => 'full']);
+
+        $this->assertFalse($account->canHoldFunds());
+        $this->assertStringContainsString('could pay themselves out', implode(' ', $account->holdBlockers()));
+    }
+
+    /**
+     * Express is rejected by Stripe for this controller combination anyway,
+     * but if one ever appears it still hands the seller a payout surface.
+     */
+    public function test_an_express_dashboard_blocks_the_hold(): void
+    {
+        $account = $this->account(['dashboard_type' => 'express']);
 
         $this->assertFalse($account->canHoldFunds());
         $this->assertStringContainsString('could pay themselves out', implode(' ', $account->holdBlockers()));
