@@ -22,6 +22,9 @@ Route::prefix('merchant')->name('merchant.')->middleware('merchant.auth')->group
     Route::get('/dashboard', [\App\Http\Controllers\Merchant\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/api-keys', [\App\Http\Controllers\Merchant\DashboardController::class, 'showApiKeys'])->name('api-keys');
     Route::post('/api-keys/regenerate', [\App\Http\Controllers\Merchant\DashboardController::class, 'regenerateKeys'])->name('regenerate-keys');
+    Route::get('/api-docs', [\App\Http\Controllers\Merchant\DashboardController::class, 'apiDocs'])->name('api-docs');
+    Route::get('/api-docs/postman', [\App\Http\Controllers\Merchant\DashboardController::class, 'postmanCollection'])->name('api-docs.postman');
+    Route::get('/api-docs/postman-env', [\App\Http\Controllers\Merchant\DashboardController::class, 'postmanEnvironment'])->name('api-docs.postman-env');
     Route::post('/seller-onboarding/toggle', [\App\Http\Controllers\Merchant\DashboardController::class, 'toggleSellerOnboarding'])->name('seller-onboarding.toggle');
     Route::post('/seller-onboarding/rotate', [\App\Http\Controllers\Merchant\DashboardController::class, 'rotateSellerOnboardingLink'])->name('seller-onboarding.rotate');
     Route::get('/settings', [\App\Http\Controllers\Merchant\DashboardController::class, 'showSettings'])->name('settings');

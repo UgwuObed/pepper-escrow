@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class DashboardController extends Controller
 {
@@ -103,6 +104,54 @@ class DashboardController extends Controller
         $merchant->forceFill(['seller_onboarding_token' => \Illuminate\Support\Str::random(32)])->save();
 
         return back()->with('status', 'New link generated. The old one no longer works.');
+    }
+
+    public function apiDocs(): View
+    {
+        $merchant = Auth::guard('merchant')->user();
+
+        return view('merchant.api_docs', [
+            'merchant' => $merchant,
+            'apiToken' => $merchant->apiToken,
+        ]);
+    }
+
+    /**
+     * The Postman collection, served from the repo so it cannot drift from
+     * the documentation it was written against.
+     */
+    public function postmanCollection(): BinaryFileResponse
+    {
+        return $this->docFile('Peppa-Settlements.postman_collection.json');
+    }
+
+    /**
+     * The environment, with this merchant's own base URL filled in. The key
+     * is left empty on purpose: a file with a key in it gets forwarded.
+     */
+    public function postmanEnvironment()
+    {
+        $env = [
+            'name' => 'Peppa — ' . Auth::guard('merchant')->user()->business_name,
+            'values' => [
+                ['key' => 'base_url', 'value' => url('/'), 'type' => 'default', 'enabled' => true],
+                ['key' => 'api_key', 'value' => '', 'type' => 'secret', 'enabled' => true],
+            ],
+            '_postman_variable_scope' => 'environment',
+        ];
+
+        return response()->json($env, 200, [
+            'Content-Disposition' => 'attachment; filename="Peppa.postman_environment.json"',
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    }
+
+    protected function docFile(string $name): BinaryFileResponse
+    {
+        $path = base_path('docs/stripe-connect/' . $name);
+
+        abort_unless(is_file($path), 404);
+
+        return response()->download($path, $name);
     }
 
     public function regenerateKeys(Request $request): RedirectResponse
