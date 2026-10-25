@@ -32,4 +32,10 @@ php artisan config:cache
 php artisan route:cache || true
 php artisan view:cache
 
+# Everything above runs as root, so the caches it writes and any log it
+# touches end up root-owned. php-fpm runs as www-data and then cannot write
+# to them. The failure is quiet and confusing: requests that log anything
+# return 500 with nothing in the log, because the logging is what throws.
+chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/laravel.conf
