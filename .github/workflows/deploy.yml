@@ -80,6 +80,14 @@ jobs:
             docker compose build --no-cache app
             docker compose up -d --force-recreate
 
+            # Ship the schema with the code. Without this a deploy lands code
+            # that queries tables the database does not have, and the pages
+            # using them return 500 while everything else looks fine.
+            docker compose exec -T app php artisan migrate --force
+            docker compose exec -T app php artisan config:cache
+            docker compose exec -T app php artisan route:cache
+            docker compose exec -T app php artisan view:cache
+
             # --no-cache writes a fresh build cache on every deploy, and
             # `image prune -f` only removes dangling images, never that cache.
             # Without this the root volume fills up over a few weeks and the
