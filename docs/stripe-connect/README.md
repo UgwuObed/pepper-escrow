@@ -50,3 +50,15 @@ later requests need no editing.
 
 Folder 6 covers the error shapes (401, 404, 409, 422) and folder 7 the pre-existing escrow
 endpoints, so one collection covers the whole surface.
+
+### Giving it to partners
+
+Partners get the same collection with a different environment:
+
+| Environment | For |
+|---|---|
+| [Peppa — Local](Peppa-Local.postman_environment.json) | Working on Peppa itself |
+| [Peppa — Production](Peppa-Production.postman_environment.json) | Partners integrating |
+
+Never send an environment with a key still in it. The `api_key` field is marked `secret` and
+exports empty; each partner pastes their own from their dashboard.
