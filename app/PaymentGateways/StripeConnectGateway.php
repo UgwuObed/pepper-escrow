@@ -21,17 +21,29 @@ use Stripe\Stripe;
  * Stripe balance, not Peppa's, until the rules engine triggers a payout.
  *
  * Accounts are created with controller properties rather than a legacy account
- * type. The combination matters and is not interchangeable with Standard:
+ * type, because no legacy type gives both halves of what a hold needs:
  *
  *   losses.payments       = stripe   Stripe covers unrecoverable negative
  *                                    balances, not Peppa.
- *   stripe_dashboard.type = express  Peppa can set the payout schedule and
- *                                    initiate payouts. On a full dashboard
- *                                    (Standard) the seller can pay themselves
- *                                    out even when the platform restricts the
- *                                    schedule, which would defeat the hold.
- *   requirement_collection= stripe   Stripe runs KYC.
+ *   stripe_dashboard.type = none     The seller has no Stripe UI, so there is
+ *                                    no surface from which to pay themselves
+ *                                    out. Stripe documents that a full
+ *                                    dashboard (Standard) account can still
+ *                                    make its own manual payouts after the
+ *                                    platform restricts its schedule, which
+ *                                    would quietly defeat the hold.
+ *   requirement_collection= stripe   Stripe runs KYC through hosted
+ *                                    onboarding, so Peppa never handles
+ *                                    seller identity documents or bank
+ *                                    details.
  *   fees.payer            = account  The seller pays Stripe's processing fees.
+ *
+ * Verified against the test API, not just the docs: `express` is rejected
+ * outright here with "your platform must collect fees and be liable for
+ * negative balances or refunds and chargebacks", which is not in Stripe's
+ * published list of unsupported combinations. `none` carries no such
+ * restriction and is the only configuration that keeps losses off the
+ * platform while denying the seller a way to release their own funds.
  *
  * @see https://docs.stripe.com/connect/migrate-to-controller-properties
  * @see https://docs.stripe.com/connect/manual-payouts
@@ -107,7 +119,7 @@ class StripeConnectGateway implements PaymentGatewayInterface
                 'losses' => ['payments' => 'stripe'],
                 'fees' => ['payer' => 'account'],
                 'requirement_collection' => 'stripe',
-                'stripe_dashboard' => ['type' => 'express'],
+                'stripe_dashboard' => ['type' => 'none'],
             ],
             'capabilities' => [
                 'card_payments' => ['requested' => true],

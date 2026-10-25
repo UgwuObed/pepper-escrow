@@ -39,16 +39,17 @@ class ConnectedAccount extends Model
     /**
      * Whether this account can safely take a held payment.
      *
-     * All four conditions matter. Losses falling on the platform, or a full
-     * dashboard the seller can pay themselves out from, each break the model
-     * even though Stripe would happily process the charge.
+     * All four conditions matter, and Stripe will happily process a charge
+     * when any of them is wrong. Losses falling on the platform puts Peppa
+     * back on the hook; any Stripe-hosted dashboard gives the seller a way to
+     * release funds we are supposed to be holding.
      */
     public function canHoldFunds(): bool
     {
         return $this->charges_enabled
             && $this->payout_schedule === 'manual'
             && $this->losses_payer === 'stripe'
-            && $this->dashboard_type !== 'full';
+            && $this->dashboard_type === 'none';
     }
 
     /**
@@ -72,8 +73,11 @@ class ConnectedAccount extends Model
             $blockers[] = 'Losses fall on the platform for this account, not Stripe.';
         }
 
-        if ($this->dashboard_type === 'full') {
-            $blockers[] = 'The seller has a full Stripe dashboard and could pay themselves out.';
+        if ($this->dashboard_type !== 'none') {
+            $blockers[] = sprintf(
+                'The seller has a %s Stripe dashboard and could pay themselves out.',
+                $this->dashboard_type ?? 'unknown'
+            );
         }
 
         return $blockers;
