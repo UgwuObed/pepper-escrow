@@ -29,6 +29,7 @@
                         'merchant.transaction-types' => ['Transaction Types', '🏷️'],
                         'merchant.commission-rules' => ['Commission Rules', '📐'],
                         'merchant.api-keys' => ['API Keys', '🔑'],
+                        'merchant.api-docs' => ['API Docs', '📘'],
                         'merchant.bank-accounts' => ['Bank Accounts', '🏧'],
                         'merchant.notifications' => ['Notifications', '🔔'],
                         'merchant.settings' => ['Settings', '⚙️'],
