@@ -20,17 +20,17 @@ class SettlementRule extends Model
         self::CONDITION_MILESTONE,
     ];
 
-    /** A destination that keeps its share on the platform rather than transferring it. */
+    /** A share that is Peppa's own fee and is never transferred. */
     public const PLATFORM_DESTINATION = 'platform';
 
     protected $fillable = [
         'merchant_id', 'name', 'flow', 'condition_type', 'config',
-        'release_percentage', 'destinations', 'priority', 'is_active',
+        'release_percentage', 'parties', 'priority', 'is_active',
     ];
 
     protected $casts = [
         'config' => 'array',
-        'destinations' => 'array',
+        'parties' => 'array',
         'is_active' => 'boolean',
     ];
 
@@ -58,13 +58,13 @@ class SettlementRule extends Model
     }
 
     /**
-     * A rule with destinations splits its release across several accounts,
-     * which only a pooled hold can do. A rule without them pays the one
-     * account the money is already sitting in.
+     * A rule that names parties only releases those parties' shares, so it
+     * only makes sense on a split hold. A rule without parties releases
+     * everything it covers, on any hold.
      */
-    public function splitsRelease(): bool
+    public function namesParties(): bool
     {
-        return !empty($this->destinations);
+        return !empty($this->parties);
     }
 
     public function releasesInFull(): bool

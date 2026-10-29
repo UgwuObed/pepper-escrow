@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\ConnectedAccount;
 use App\Models\SettlementHold;
-use App\Models\SettlementTransfer;
+use App\Models\SettlementShare;
 use App\PaymentGateways\StripeConnectGateway;
 use Illuminate\Support\Facades\Log;
 
@@ -55,34 +55,35 @@ class SellerDashboardService
             ],
             'onboarding' => $this->onboarding($account),
             'holds' => $this->holds($account),
-            'received' => $this->received($account),
+            'shares' => $this->shares($account),
             'balance' => $this->balance($account),
             'payouts' => $this->payouts($account),
         ];
     }
 
     /**
-     * Shares of pooled releases sent to this account, newest first. A
-     * recipient has no holds of its own, so this is what it is waiting on
-     * and what has arrived.
+     * This participant's shares of split payments, newest first. The money
+     * is already in their account; this says how much of it is still held
+     * and how much has been released to them.
      *
      * @return array<int, array<string, mixed>>
      */
-    protected function received(ConnectedAccount $account, int $limit = 50): array
+    protected function shares(ConnectedAccount $account, int $limit = 50): array
     {
-        return SettlementTransfer::where('connected_account_id', $account->id)
-            ->with('hold:id,reference')
+        return SettlementShare::where('connected_account_id', $account->id)
+            ->with('hold:id,reference,status')
             ->latest('id')
             ->limit($limit)
             ->get()
-            ->map(fn (SettlementTransfer $t) => [
-                'reference' => $t->hold?->reference,
-                'as' => $t->destination,
-                'amount' => (float) $t->amount,
-                'currency' => $t->currency,
-                'status' => $t->status,
-                'transfer_id' => $t->transfer_id,
-                'at' => $t->created_at?->toIso8601String(),
+            ->map(fn (SettlementShare $s) => [
+                'reference' => $s->hold?->reference,
+                'as' => $s->destination,
+                'amount' => (float) $s->amount,
+                'held' => $s->remaining(),
+                'released' => (float) $s->amount_released,
+                'refunded' => (float) $s->amount_refunded,
+                'currency' => $s->currency,
+                'at' => $s->created_at?->toIso8601String(),
             ])
             ->all();
     }

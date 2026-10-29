@@ -172,11 +172,12 @@ class ConnectedAccountController extends Controller
                 ]);
             }
 
-            // A pooled hold's payment has landed in the platform balance.
-            // Platform events carry no "account"; one that does is a direct
-            // charge on a holding account and is not ours to act on here.
+            // A split payment has succeeded and can be shared out to the
+            // participants. Platform events carry no "account"; one that does
+            // is a direct charge on a holding account and is not ours to act
+            // on here.
             if ($type === 'checkout.session.completed' && empty($payload['account'])) {
-                return $this->pooledPaymentCompleted($payload['data']['object'] ?? []);
+                return $this->splitPaymentCompleted($payload['data']['object'] ?? []);
             }
 
             // Payout events belong to the release side of the flow, which the
@@ -255,13 +256,13 @@ class ConnectedAccountController extends Controller
     /**
      * @return array<string, mixed>
      */
-    protected function pooledPaymentCompleted(array $session): JsonResponse
+    protected function splitPaymentCompleted(array $session): JsonResponse
     {
         $holdId = $session['metadata']['peppa_hold_id'] ?? null;
         $paymentIntent = $session['payment_intent'] ?? null;
 
         if (!$holdId || !is_string($paymentIntent)) {
-            return response()->json(['status' => 'ok', 'message' => 'Not a pooled hold payment']);
+            return response()->json(['status' => 'ok', 'message' => 'Not a split hold payment']);
         }
 
         $hold = SettlementHold::where('id', $holdId)
@@ -269,7 +270,7 @@ class ConnectedAccountController extends Controller
             ->first();
 
         if (!$hold) {
-            Log::warning('Pooled payment for an unknown hold', ['hold_id' => $holdId]);
+            Log::warning('Split payment for an unknown hold', ['hold_id' => $holdId]);
 
             return response()->json(['status' => 'ok', 'message' => 'Unknown hold']);
         }
@@ -295,8 +296,8 @@ class ConnectedAccountController extends Controller
             'holding_period_days' => $account->holding_period_days,
             'can_hold_funds' => $account->canHoldFunds(),
             'hold_blockers' => $account->holdBlockers(),
-            'can_receive_transfers' => $account->canReceiveTransfers(),
-            'transfer_blockers' => $account->isRecipient() ? $account->transferBlockers() : [],
+            'can_hold_shares' => $account->canHoldShares(),
+            'share_blockers' => $account->isRecipient() ? $account->shareBlockers() : [],
             'requirements_due' => $account->requirements_due ?? [],
             'status_synced_at' => $account->status_synced_at,
         ];

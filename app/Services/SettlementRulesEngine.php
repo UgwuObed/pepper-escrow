@@ -6,6 +6,7 @@ use App\Models\ConnectedAccount;
 use App\Models\HoldEvent;
 use App\Models\SettlementHold;
 use App\Models\SettlementRule;
+use App\Models\SettlementShare;
 use App\Models\SettlementTransfer;
 use App\PaymentGateways\StripeConnectGateway;
 use Illuminate\Support\Facades\DB;
@@ -25,10 +26,11 @@ use Illuminate\Support\Str;
  *   elapsed_days        a timer runs out with no dispute
  *   manual_approval     a human approves it
  *
- * Money is held in one of two places. An account-funded hold sits in one
- * holding account's own balance and a release pays that account out. A
- * pooled hold sits in the platform balance and a release is split across
- * the rule's destinations, each share transferred to its own account.
+ * Peppa never holds the money. An account-funded hold sits in one holding
+ * account's own balance and a release pays that account out. A split hold
+ * is divided the moment it is paid: each share is transferred into its
+ * participant's own locked account, and a release pays each participant
+ * out from there.
  *
  * A dispute freezes the hold and no rule fires until it is resolved. Stripe's
  * per-country holding limit overrides everything: a hold at its deadline is
@@ -101,19 +103,80 @@ class SettlementRulesEngine
     }
 
     /**
-     * Open a pooled hold and ask for the payment into the platform balance.
+     * Work out a split payment's shares and the account each one goes to.
      *
-     * The hold exists before the money does, so the payment can carry the
-     * hold's transfer group from the start. It waits in awaiting_payment
-     * until Stripe confirms the charge.
+     * Used when the hold is opened, so a missing or unready participant is
+     * refused before the payer is asked for anything.
      *
+     * @param array<int, array<string, mixed>> $split
+     * @param array<string, string> $parties role => connected account id
+     * @return array<int, array{to: string, amount: float, account: ?ConnectedAccount}>
+     *
+     * @throws \InvalidArgumentException when the split itself is unsound
+     * @throws \RuntimeException listing every participant that cannot take a share
+     */
+    public function planShares(int $merchantId, float $amount, string $currency, array $split, array $parties): array
+    {
+        if ($error = SplitCalculator::validate($split)) {
+            throw new \InvalidArgumentException($error);
+        }
+
+        $shares = $this->splitter->split($amount, $currency, $split);
+        $problems = [];
+
+        foreach ($shares as $i => $share) {
+            $shares[$i]['account'] = null;
+
+            if ($share['to'] === SettlementRule::PLATFORM_DESTINATION) {
+                continue;
+            }
+
+            $accountId = str_starts_with($share['to'], 'acct_') ? $share['to'] : ($parties[$share['to']] ?? null);
+
+            if (!$accountId) {
+                $problems[] = sprintf('No account is assigned to "%s".', $share['to']);
+                continue;
+            }
+
+            $account = ConnectedAccount::byMerchant($merchantId)->where('account_id', $accountId)->first();
+
+            if (!$account) {
+                $problems[] = sprintf('%s (%s) is not one of your accounts.', $accountId, $share['to']);
+                continue;
+            }
+
+            if (!$account->canHoldShares()) {
+                $problems[] = sprintf('%s (%s) cannot hold a share yet: %s',
+                    $share['to'], $accountId, implode(' ', $account->shareBlockers()));
+                continue;
+            }
+
+            $shares[$i]['account'] = $account;
+        }
+
+        if ($problems) {
+            throw new \RuntimeException(implode(' ', $problems));
+        }
+
+        return $shares;
+    }
+
+    /**
+     * Open a split hold and ask the payer for the money.
+     *
+     * The shares are fixed now, because each one is transferred into its
+     * participant's account the moment the payment succeeds. The hold waits
+     * in awaiting_payment until Stripe confirms the charge.
+     *
+     * @param array<int, array<string, mixed>> $split
      * @param array<string, string> $parties role => connected account id
      */
-    public function openPooled(
+    public function openSplit(
         int $merchantId,
         string $reference,
         float $amount,
         string $currency,
+        array $split,
         array $parties,
         ?string $flow,
         ?string $onExpiry,
@@ -121,17 +184,36 @@ class SettlementRulesEngine
         string $successUrl,
         string $cancelUrl,
     ): SettlementHold {
-        $hold = SettlementHold::create([
-            'merchant_id' => $merchantId,
-            'funding' => SettlementHold::FUNDING_POOLED,
-            'reference' => $reference,
-            'flow' => $flow,
-            'parties' => $parties,
-            'on_expiry' => $onExpiry ?: 'refund',
-            'amount' => $amount,
-            'currency' => strtoupper($currency),
-            'status' => SettlementHold::STATUS_AWAITING_PAYMENT,
-        ]);
+        $currency = strtoupper($currency);
+        $planned = $this->planShares($merchantId, $amount, $currency, $split, $parties);
+
+        $hold = DB::transaction(function () use ($merchantId, $reference, $amount, $currency, $split, $parties, $flow, $onExpiry, $planned) {
+            $hold = SettlementHold::create([
+                'merchant_id' => $merchantId,
+                'funding' => SettlementHold::FUNDING_SPLIT,
+                'reference' => $reference,
+                'flow' => $flow,
+                'parties' => $parties,
+                'split' => $split,
+                'on_expiry' => $onExpiry ?: 'refund',
+                'amount' => $amount,
+                'currency' => $currency,
+                'status' => SettlementHold::STATUS_AWAITING_PAYMENT,
+            ]);
+
+            foreach ($planned as $share) {
+                SettlementShare::create([
+                    'settlement_hold_id' => $hold->id,
+                    'destination' => $share['to'],
+                    'connected_account_id' => $share['account']?->id,
+                    'account_id' => $share['account']?->account_id,
+                    'amount' => $share['amount'],
+                    'currency' => $currency,
+                ]);
+            }
+
+            return $hold;
+        });
 
         $checkout = $this->gateway()->createPlatformCheckout(
             $amount,
@@ -155,8 +237,11 @@ class SettlementRulesEngine
     }
 
     /**
-     * The payment for a pooled hold has arrived. Safe to call more than once:
-     * Stripe retries webhooks, and a second delivery changes nothing.
+     * The payment for a split hold has arrived: share it out at once. Safe to
+     * call more than once, since Stripe retries webhooks.
+     *
+     * The deadline is the earliest of the participants' holding limits, since
+     * each share is held in its own participant's account.
      */
     public function paymentReceived(SettlementHold $hold, string $paymentIntentId): SettlementHold
     {
@@ -179,20 +264,43 @@ class SettlementRulesEngine
             return $hold;
         }
 
-        $expiresAt = $gateway->holdExpiresAt($gateway->platformCountry());
+        $shares = $hold->shares()->with('connectedAccount')->get();
+        $countries = $shares->pluck('connectedAccount.country')->filter()->unique();
 
-        $hold->update([
-            'payment_intent_id' => $paymentIntentId,
-            'charge_id' => $payment['charge_id'],
-            'status' => SettlementHold::STATUS_HELD,
-            'held_at' => now(),
-            'hold_expires_at' => $expiresAt,
-        ]);
+        $expiresAt = $countries->isEmpty()
+            ? $gateway->holdExpiresAt($gateway->platformCountry())
+            : $countries->map(fn ($c) => $gateway->holdExpiresAt($c))->sort()->first();
 
-        $this->record($hold, 'held', 'system', [
-            'amount' => (float) $hold->amount,
-            'note' => sprintf('Payment received. Held until %s at the latest.', $expiresAt->toDateString()),
-        ]);
+        $lines = DB::transaction(function () use ($hold, $paymentIntentId, $payment, $expiresAt, $shares) {
+            $hold->update([
+                'payment_intent_id' => $paymentIntentId,
+                'charge_id' => $payment['charge_id'],
+                'status' => SettlementHold::STATUS_HELD,
+                'held_at' => now(),
+                'hold_expires_at' => $expiresAt,
+            ]);
+
+            $this->record($hold, 'held', 'system', [
+                'amount' => (float) $hold->amount,
+                'note' => sprintf('Payment received and shared into the participants\' accounts. Release by %s at the latest.',
+                    $expiresAt->toDateString()),
+            ]);
+
+            return $shares->reject->isPlatform()->map(fn (SettlementShare $share) => SettlementTransfer::create([
+                'settlement_hold_id' => $hold->id,
+                'settlement_share_id' => $share->id,
+                'kind' => SettlementTransfer::KIND_TRANSFER,
+                'destination' => $share->destination,
+                'connected_account_id' => $share->connected_account_id,
+                'account_id' => $share->account_id,
+                'amount' => $share->amount,
+                'currency' => $share->currency,
+                'status' => SettlementTransfer::STATUS_PENDING,
+                'idempotency_key' => "share-{$share->id}-transfer",
+            ]))->values();
+        });
+
+        $this->sendMovements($hold, $lines);
 
         return $hold->fresh();
     }
@@ -252,33 +360,19 @@ class SettlementRulesEngine
 
     /**
      * @param string $outcome release | refund | resume
-     * @param array<int, array<string, mixed>>|null $destinations where a pooled
-     *        hold's money goes on release; account-funded holds ignore it
      */
-    public function resolveDispute(
-        SettlementHold $hold,
-        string $outcome,
-        string $actor,
-        ?array $destinations = null,
-    ): SettlementHold {
+    public function resolveDispute(SettlementHold $hold, string $outcome, string $actor): SettlementHold
+    {
         if (!$hold->isFrozen()) {
             throw new \RuntimeException("Hold {$hold->reference} is not disputed.");
-        }
-
-        // Checked before anything changes, so a refused resolution leaves the
-        // hold disputed rather than half-resolved.
-        if ($outcome === 'release' && $hold->isPooled() && empty($destinations)) {
-            throw new \RuntimeException(
-                'Releasing a pooled hold needs destinations saying where the money goes.'
-            );
         }
 
         $hold->update(['status' => SettlementHold::STATUS_HELD]);
         $this->record($hold, 'dispute_resolved', $actor, ['note' => $outcome]);
 
         return match ($outcome) {
-            'release' => $hold->isPooled()
-                ? $this->releaseSplit($hold, $hold->remaining(), $destinations, null, 'dispute resolved: released')
+            'release' => $hold->isSplit()
+                ? $this->releaseShares($hold, 100, null, null, 'dispute resolved: released')
                 : $this->release($hold, $hold->remaining(), null, 'dispute resolved in seller favour'),
             'refund' => $this->refund($hold, $hold->remaining(), 'dispute resolved in buyer favour'),
             default => $hold->fresh(),
@@ -318,22 +412,19 @@ class SettlementRulesEngine
             return $hold;
         }
 
-        $amount = $this->releaseAmount($hold, $rule);
-
-        return $hold->isPooled()
-            ? $this->releaseSplit($hold, $amount, $rule->destinations, $rule, $rule->name)
-            : $this->release($hold, $amount, $rule, $rule->name);
+        return $hold->isSplit()
+            ? $this->releaseShares($hold, (int) $rule->release_percentage, $rule->parties, $rule, $rule->name)
+            : $this->release($hold, $this->releaseAmount($hold, $rule), $rule, $rule->name);
     }
 
     /**
      * The first rule, by priority, that applies to this hold.
      *
      * A rule applies when its flow matches the hold's (or it has none), when
-     * it suits where the money is (split rules for pooled holds, plain rules
-     * for account-funded ones), and for milestones when it names this
-     * milestone and either names no confirming party or names this one. A
-     * milestone rule fires once per hold: confirming the same milestone
-     * twice must not pay out twice.
+     * it names parties only if the hold is split, and for milestones when it
+     * names this milestone and either names no confirming party or names this
+     * one. A milestone rule fires once per hold: confirming the same
+     * milestone twice must not pay out twice.
      *
      * @return array{0: ?SettlementRule, 1: ?string} the rule, or why none applied
      */
@@ -353,7 +444,7 @@ class SettlementRulesEngine
                 continue;
             }
 
-            if ($rule->splitsRelease() !== $hold->isPooled()) {
+            if ($rule->namesParties() && !$hold->isSplit()) {
                 continue;
             }
 
@@ -395,8 +486,8 @@ class SettlementRulesEngine
     protected function conditionMet(SettlementHold $hold, SettlementRule $rule): bool
     {
         return match ($rule->condition_type) {
-            // Both are triggered by something that already happened, so
-            // reaching evaluate() is the condition.
+            // Triggered by something that already happened, so reaching
+            // evaluate() is the condition.
             SettlementRule::CONDITION_BUYER_CONFIRMATION,
             SettlementRule::CONDITION_MANUAL_APPROVAL,
             SettlementRule::CONDITION_MILESTONE => true,
@@ -424,11 +515,11 @@ class SettlementRulesEngine
         return min($share, $hold->remaining());
     }
 
-    // ─── Moving the money ─────────────────────────────────────────────
+    // ─── Moving the money: account-funded holds ───────────────────────
 
     /**
-     * Pay the seller. This is the only place a payout is created, so every
-     * release passes the same guards and leaves the same trail.
+     * Pay the seller. This is the only place an account-funded hold is paid
+     * out, so every release passes the same guards and leaves the same trail.
      */
     public function release(
         SettlementHold $hold,
@@ -440,14 +531,14 @@ class SettlementRulesEngine
             throw new \RuntimeException("Cannot release a disputed hold ({$hold->reference}).");
         }
 
+        if ($hold->isSplit()) {
+            throw new \RuntimeException("A split hold ({$hold->reference}) is released share by share.");
+        }
+
         $amount = round(min($amount, $hold->remaining()), 2);
 
         if ($amount <= 0) {
             return $hold;
-        }
-
-        if ($hold->isPooled()) {
-            throw new \RuntimeException("A pooled hold ({$hold->reference}) is released through its rule's destinations.");
         }
 
         $account = $hold->connectedAccount;
@@ -500,23 +591,29 @@ class SettlementRulesEngine
         return $hold->fresh();
     }
 
+    // ─── Moving the money: split holds ────────────────────────────────
+
     /**
-     * Release part of a pooled hold, split across destinations.
+     * Release shares of a split hold: each participant is paid out from the
+     * share already sitting in their own account.
      *
-     * Every destination is resolved to a ready account before anything is
-     * committed, so a missing or half-onboarded party stops the whole
-     * release rather than paying some shares and stranding the rest. The
-     * shares are then written down and the hold's balance reduced in one
-     * transaction, and only after that is money moved. A transfer that fails
-     * is left marked failed and retried; it is never recalculated, so a retry
-     * can only ever send what was originally decided.
+     * `$percentage` is of each share's original amount, capped at what is
+     * left of it, so staged releases add up exactly as they do on a single
+     * account. `$parties` limits the release to those shares (by role or
+     * account id); null releases every share.
      *
-     * @param array<int, array<string, mixed>> $destinations
+     * Every participant is checked before anything is committed, so one
+     * participant who cannot be paid out stops the release rather than
+     * paying some and stranding the rest. The release is then recorded in
+     * one transaction and only after that are payouts sent; a payout that
+     * fails is retried with the same key and is never recalculated.
+     *
+     * @param array<int, string>|null $parties
      */
-    public function releaseSplit(
+    public function releaseShares(
         SettlementHold $hold,
-        float $amount,
-        array $destinations,
+        int $percentage,
+        ?array $parties = null,
         ?SettlementRule $rule = null,
         string $reason = '',
     ): SettlementHold {
@@ -524,64 +621,41 @@ class SettlementRulesEngine
             throw new \RuntimeException("Cannot release a disputed hold ({$hold->reference}).");
         }
 
-        if (!$hold->isPooled()) {
-            throw new \RuntimeException("Only a pooled hold can be split ({$hold->reference}).");
+        if (!$hold->isSplit()) {
+            throw new \RuntimeException("Only a split hold is released share by share ({$hold->reference}).");
         }
 
-        $amount = round(min($amount, $hold->remaining()), 2);
+        $shares = $hold->shares()->with('connectedAccount')->get()
+            ->filter(fn (SettlementShare $s) => $parties === null
+                || in_array($s->destination, $parties, true)
+                || in_array($s->account_id, $parties, true))
+            ->filter(fn (SettlementShare $s) => $s->remaining() > 0)
+            ->values();
 
-        if ($amount <= 0) {
-            return $hold;
-        }
-
-        if ($error = SplitCalculator::validate($destinations)) {
-            throw new \InvalidArgumentException($error);
-        }
-
-        try {
-            $shares = $this->splitter->split($amount, $hold->currency, $destinations);
-        } catch (\InvalidArgumentException $e) {
-            $this->record($hold, 'release_failed', 'system', [
-                'amount' => $amount, 'rule_id' => $rule?->id, 'note' => $e->getMessage(),
+        if ($shares->isEmpty()) {
+            $this->record($hold, 'release_blocked', 'system', [
+                'rule_id' => $rule?->id,
+                'note' => $parties === null
+                    ? 'nothing left to release'
+                    : 'nothing left to release for ' . implode(', ', $parties),
             ]);
 
-            throw $e;
+            return $hold;
         }
 
         $problems = [];
 
-        foreach ($shares as $i => $share) {
-            if ($share['to'] === SettlementRule::PLATFORM_DESTINATION) {
-                $shares[$i]['account'] = null;
-                continue;
+        foreach ($shares as $share) {
+            $account = $share->connectedAccount;
+
+            if (!$share->isPlatform() && (!$account || !$account->payouts_enabled)) {
+                $problems[] = sprintf('%s (%s) cannot be paid out: payouts are not enabled on the account.',
+                    $share->destination, $share->account_id);
             }
-
-            $accountId = str_starts_with($share['to'], 'acct_') ? $share['to'] : $hold->party($share['to']);
-
-            if (!$accountId) {
-                $problems[] = sprintf('No account is assigned to "%s" on this payment.', $share['to']);
-                continue;
-            }
-
-            $account = ConnectedAccount::byMerchant($hold->merchant_id)->where('account_id', $accountId)->first();
-
-            if (!$account) {
-                $problems[] = sprintf('%s (%s) is not one of your accounts.', $accountId, $share['to']);
-                continue;
-            }
-
-            if (!$account->canReceiveTransfers()) {
-                $problems[] = sprintf('%s (%s) cannot receive money yet: %s',
-                    $share['to'], $accountId, implode(' ', $account->transferBlockers()));
-                continue;
-            }
-
-            $shares[$i]['account'] = $account;
         }
 
         if ($problems) {
             $this->record($hold, 'release_failed', 'system', [
-                'amount' => $amount,
                 'rule_id' => $rule?->id,
                 'note' => 'Nothing was released. ' . implode(' ', $problems),
                 'detail' => ['problems' => $problems],
@@ -592,27 +666,49 @@ class SettlementRulesEngine
 
         $releaseId = (string) Str::uuid();
 
-        $lines = DB::transaction(function () use ($hold, $amount, $rule, $reason, $shares, $releaseId) {
+        $lines = DB::transaction(function () use ($hold, $shares, $percentage, $rule, $reason, $releaseId) {
             $lines = [];
+            $total = 0.0;
+            $detail = [];
 
-            foreach ($shares as $n => $share) {
-                $account = $share['account'];
+            foreach ($shares as $share) {
+                $amount = $percentage >= 100
+                    ? $share->remaining()
+                    : min(round((float) $share->amount * $percentage / 100, 2), $share->remaining());
+
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                $share->update(['amount_released' => round((float) $share->amount_released + $amount, 2)]);
+                $total += $amount;
+                $detail[] = ['to' => $share->destination, 'amount' => $amount];
+
+                // Peppa's own fee is never transferred, so there is nothing
+                // to pay out; releasing it is bookkeeping.
+                if ($share->isPlatform()) {
+                    $share->update(['amount_paid_out' => $share->amount_released]);
+                    continue;
+                }
 
                 $lines[] = SettlementTransfer::create([
                     'settlement_hold_id' => $hold->id,
+                    'settlement_share_id' => $share->id,
+                    'kind' => SettlementTransfer::KIND_PAYOUT,
                     'rule_id' => $rule?->id,
                     'release_id' => $releaseId,
-                    'destination' => $share['to'],
-                    'connected_account_id' => $account?->id,
-                    'account_id' => $account?->account_id,
-                    'amount' => $share['amount'],
-                    'currency' => $hold->currency,
-                    'status' => $account ? SettlementTransfer::STATUS_PENDING : SettlementTransfer::STATUS_RETAINED,
-                    'idempotency_key' => "hold-{$hold->id}-{$releaseId}-{$n}",
+                    'destination' => $share->destination,
+                    'connected_account_id' => $share->connected_account_id,
+                    'account_id' => $share->account_id,
+                    'amount' => $amount,
+                    'currency' => $share->currency,
+                    'status' => SettlementTransfer::STATUS_PENDING,
+                    'idempotency_key' => "share-{$share->id}-payout-{$releaseId}",
                 ]);
             }
 
-            $released = round((float) $hold->amount_released + $amount, 2);
+            $total = round($total, 2);
+            $released = round((float) $hold->amount_released + $total, 2);
             $fullyOut = $released + (float) $hold->amount_refunded >= (float) $hold->amount;
 
             $hold->update([
@@ -624,31 +720,30 @@ class SettlementRulesEngine
             ]);
 
             $this->record($hold, 'released', 'system', [
-                'amount' => $amount,
+                'amount' => $total,
                 'rule_id' => $rule?->id,
                 'note' => $reason,
-                'detail' => [
-                    'release_id' => $releaseId,
-                    'shares' => array_map(fn ($s) => ['to' => $s['to'], 'amount' => $s['amount']], $shares),
-                ],
+                'detail' => ['release_id' => $releaseId, 'shares' => $detail],
             ]);
 
             return $lines;
         });
 
-        $this->sendTransfers($hold, $lines);
+        $this->sendMovements($hold, $lines);
 
         return $hold->fresh();
     }
 
     /**
-     * Send pending or failed shares. Each carries the idempotency key it was
-     * created with, so resending after a timeout cannot pay twice.
+     * Carry out pending or failed share movements: transfers into the
+     * participants' accounts, then payouts out of them. Each keeps the
+     * idempotency key it was created with, so resending after a timeout
+     * cannot move money twice.
      *
      * @param iterable<SettlementTransfer> $lines
      * @return int how many failed
      */
-    public function sendTransfers(SettlementHold $hold, iterable $lines): int
+    public function sendMovements(SettlementHold $hold, iterable $lines): int
     {
         $failed = 0;
 
@@ -658,38 +753,48 @@ class SettlementRulesEngine
             }
 
             try {
-                $result = $this->gateway()->createTransfer(
-                    (string) $line->account_id,
-                    (float) $line->amount,
-                    $line->currency,
-                    $this->transferGroup($hold),
-                    $hold->charge_id,
-                    $line->idempotency_key,
-                    [
-                        'reference' => $hold->reference,
-                        'destination' => $line->destination,
-                        'release_id' => $line->release_id,
-                    ],
-                );
+                $providerId = match ($line->kind) {
+                    SettlementTransfer::KIND_TRANSFER => $this->gateway()->createTransfer(
+                        (string) $line->account_id,
+                        (float) $line->amount,
+                        $line->currency,
+                        $this->transferGroup($hold),
+                        $hold->charge_id,
+                        $line->idempotency_key,
+                        ['reference' => $hold->reference, 'share' => $line->destination],
+                    )['transfer_id'],
 
-                $line->update([
-                    'status' => SettlementTransfer::STATUS_PAID,
-                    'transfer_id' => $result['transfer_id'],
-                    'error' => null,
-                ]);
+                    SettlementTransfer::KIND_PAYOUT => $this->payOut($line),
+
+                    default => throw new \LogicException("Movement {$line->id} of kind {$line->kind} is not retried."),
+                };
+
+                DB::transaction(function () use ($line, $providerId) {
+                    $line->update([
+                        'status' => SettlementTransfer::STATUS_PAID,
+                        'provider_id' => $providerId,
+                        'error' => null,
+                    ]);
+
+                    if ($line->kind === SettlementTransfer::KIND_PAYOUT) {
+                        $share = $line->share;
+                        $share->update(['amount_paid_out' => round((float) $share->amount_paid_out + (float) $line->amount, 2)]);
+                    }
+                });
             } catch (\Throwable $e) {
                 $failed++;
 
                 $line->update(['status' => SettlementTransfer::STATUS_FAILED, 'error' => $e->getMessage()]);
 
-                $this->record($hold, 'transfer_failed', 'system', [
+                $this->record($hold, $line->kind . '_failed', 'system', [
                     'amount' => (float) $line->amount,
                     'note' => sprintf('%s: %s', $line->destination, $e->getMessage()),
-                    'detail' => ['transfer_line' => $line->id],
+                    'detail' => ['movement' => $line->id],
                 ]);
 
-                Log::error('Split release transfer failed', [
+                Log::error('Split share movement failed', [
                     'hold' => $hold->reference,
+                    'kind' => $line->kind,
                     'destination' => $line->destination,
                     'error' => $e->getMessage(),
                 ]);
@@ -700,16 +805,42 @@ class SettlementRulesEngine
     }
 
     /**
-     * Resend every share that failed. The sweep calls this so a transient
-     * Stripe error resolves itself; partners can call it for one hold.
+     * A share can only be paid out once it has actually reached the
+     * participant's account.
+     */
+    protected function payOut(SettlementTransfer $line): string
+    {
+        $share = $line->share()->with('movements')->first();
+
+        if (!$share || !$share->allocation()) {
+            throw new \RuntimeException('The share has not reached the participant\'s account yet.');
+        }
+
+        return $this->gateway()->createPayout(
+            (string) $line->account_id,
+            (float) $line->amount,
+            $line->currency,
+            ['reference' => $line->hold->reference, 'share' => $line->destination],
+            $line->idempotency_key,
+        )['payout_id'];
+    }
+
+    /**
+     * Resend every share movement that failed, transfers before payouts.
+     * The sweep calls this so a transient Stripe error resolves itself;
+     * partners can call it for one hold.
      *
      * @return array{retried: int, failed: int}
      */
-    public function retryFailedTransfers(?SettlementHold $only = null): array
+    public function retryFailedMovements(?SettlementHold $only = null): array
     {
         $summary = ['retried' => 0, 'failed' => 0];
 
-        $query = SettlementTransfer::where('status', SettlementTransfer::STATUS_FAILED)->with('hold');
+        $query = SettlementTransfer::where('status', SettlementTransfer::STATUS_FAILED)
+            ->whereIn('kind', [SettlementTransfer::KIND_TRANSFER, SettlementTransfer::KIND_PAYOUT])
+            ->with('hold')
+            ->orderByRaw("case when kind = 'transfer' then 0 else 1 end")
+            ->orderBy('id');
 
         if ($only) {
             $query->where('settlement_hold_id', $only->id);
@@ -717,17 +848,19 @@ class SettlementRulesEngine
 
         $query->get()->groupBy('settlement_hold_id')->each(function ($lines) use (&$summary) {
             $summary['retried'] += $lines->count();
-            $summary['failed'] += $this->sendTransfers($lines->first()->hold, $lines);
+            $summary['failed'] += $this->sendMovements($lines->first()->hold, $lines);
         });
 
         return $summary;
     }
 
-    /** Ties a pooled hold's payment and every share of its release together in Stripe. */
+    /** Ties a split payment and every share of it together in Stripe. */
     protected function transferGroup(SettlementHold $hold): string
     {
         return 'hold_' . $hold->id;
     }
+
+    // ─── Refunds ──────────────────────────────────────────────────────
 
     public function refund(SettlementHold $hold, float $amount, string $reason = ''): SettlementHold
     {
@@ -741,21 +874,18 @@ class SettlementRulesEngine
             return $hold;
         }
 
-        if ($hold->isPooled()) {
-            $this->gateway()->refundPlatformPayment(
-                (string) $hold->payment_intent_id,
-                $amount,
-                $hold->currency,
-                $reason,
-            );
-        } else {
-            $this->gateway()->processRefund(
-                (string) $hold->payment_intent_id,
-                $amount,
-                $reason,
-                $hold->connectedAccount?->account_id,
-            );
+        if ($hold->isSplit()) {
+            return $this->refundSplit($hold, $amount, $reason);
         }
+
+        $account = $hold->connectedAccount;
+
+        $this->gateway()->processRefund(
+            (string) $hold->payment_intent_id,
+            $amount,
+            $reason,
+            $account?->account_id,
+        );
 
         $refunded = round((float) $hold->amount_refunded + $amount, 2);
         $allOut = $refunded + (float) $hold->amount_released >= (float) $hold->amount;
@@ -770,11 +900,153 @@ class SettlementRulesEngine
         return $hold->fresh();
     }
 
+    /**
+     * Refund a split payment. The refund is taken from every share that is
+     * still held, in proportion to what each has left, and each
+     * participant's portion is pulled back from their account before the
+     * payer is refunded. If a pull-back fails, only what was recovered is
+     * refunded and the hold says so; nothing is refunded out of Peppa's own
+     * money.
+     */
+    protected function refundSplit(SettlementHold $hold, float $amount, string $reason): SettlementHold
+    {
+        $shares = $hold->shares()->with('movements')->get()->filter(fn ($s) => $s->remaining() > 0)->values();
+
+        foreach ($shares as $share) {
+            if (!$share->isPlatform() && !$share->allocation()) {
+                throw new \RuntimeException(
+                    "The payment for {$hold->reference} is still being shared out. Try the refund again shortly."
+                );
+            }
+        }
+
+        $portions = $this->proportion($amount, $hold->currency, $shares->map->remaining()->all());
+        $refundId = (string) Str::uuid();
+        $recovered = 0.0;
+        $failures = [];
+
+        foreach ($shares as $i => $share) {
+            $portion = $portions[$i];
+
+            if ($portion <= 0) {
+                continue;
+            }
+
+            if (!$share->isPlatform()) {
+                $line = SettlementTransfer::create([
+                    'settlement_hold_id' => $hold->id,
+                    'settlement_share_id' => $share->id,
+                    'kind' => SettlementTransfer::KIND_REVERSAL,
+                    'release_id' => $refundId,
+                    'destination' => $share->destination,
+                    'connected_account_id' => $share->connected_account_id,
+                    'account_id' => $share->account_id,
+                    'amount' => $portion,
+                    'currency' => $share->currency,
+                    'status' => SettlementTransfer::STATUS_PENDING,
+                    'idempotency_key' => "share-{$share->id}-reversal-{$refundId}",
+                ]);
+
+                try {
+                    $result = $this->gateway()->reverseTransfer(
+                        (string) $share->allocation()->provider_id,
+                        $portion,
+                        $share->currency,
+                        $line->idempotency_key,
+                    );
+                    $line->update(['status' => SettlementTransfer::STATUS_PAID, 'provider_id' => $result['reversal_id']]);
+                } catch (\Throwable $e) {
+                    $line->update(['status' => SettlementTransfer::STATUS_FAILED, 'error' => $e->getMessage()]);
+                    $failures[] = sprintf('%s: %s', $share->destination, $e->getMessage());
+                    continue;
+                }
+            }
+
+            $share->update(['amount_refunded' => round((float) $share->amount_refunded + $portion, 2)]);
+            $recovered += $portion;
+        }
+
+        $recovered = round($recovered, 2);
+
+        if ($recovered > 0) {
+            $this->gateway()->refundPlatformPayment(
+                (string) $hold->payment_intent_id,
+                $recovered,
+                $hold->currency,
+                $reason,
+            );
+
+            $refunded = round((float) $hold->amount_refunded + $recovered, 2);
+            $allOut = $refunded + (float) $hold->amount_released >= (float) $hold->amount;
+
+            $hold->update([
+                'amount_refunded' => $refunded,
+                'status' => $allOut ? SettlementHold::STATUS_REFUNDED : $hold->status,
+            ]);
+
+            $this->record($hold, 'refunded', 'system', ['amount' => $recovered, 'note' => $reason]);
+        }
+
+        if ($failures) {
+            $this->record($hold, 'refund_incomplete', 'system', [
+                'amount' => round($amount - $recovered, 2),
+                'note' => 'Could not recover from ' . implode('; ', $failures),
+            ]);
+
+            throw new \RuntimeException(sprintf(
+                'Refunded %s of %s %s. Could not recover the rest from %s',
+                number_format($recovered, 2, '.', ''), number_format($amount, 2, '.', ''), $hold->currency,
+                implode('; ', $failures),
+            ));
+        }
+
+        return $hold->fresh();
+    }
+
+    /**
+     * Divide an amount across weights, in minor units, so the parts add up to
+     * the amount exactly.
+     *
+     * @param array<int, float> $weights
+     * @return array<int, float>
+     */
+    protected function proportion(float $amount, string $currency, array $weights): array
+    {
+        $scale = in_array(strtoupper($currency), StripeConnectGateway::ZERO_DECIMAL_CURRENCIES, true) ? 1 : 100;
+        $total = (int) round($amount * $scale);
+        $weightSum = array_sum($weights);
+
+        if ($weightSum <= 0) {
+            return array_fill(0, count($weights), 0.0);
+        }
+
+        $parts = [];
+        $given = 0;
+        foreach ($weights as $i => $w) {
+            $parts[$i] = (int) floor($total * $w / $weightSum);
+            $given += $parts[$i];
+        }
+
+        // Rounding leftovers go one unit at a time to the largest weights.
+        arsort($weights);
+        foreach (array_keys($weights) as $i) {
+            if ($given >= $total) {
+                break;
+            }
+            $parts[$i]++;
+            $given++;
+        }
+
+        ksort($parts);
+
+        return array_map(fn ($p) => $p / $scale, $parts);
+    }
+
     // ─── Scheduled sweep ──────────────────────────────────────────────
 
     /**
-     * Run on a schedule. Fires elapsed-day rules, and force-releases anything
-     * approaching Stripe's holding limit.
+     * Run on a schedule. Fires elapsed-day rules, force-releases anything
+     * approaching Stripe's holding limit, and retries failed share movements.
      *
      * @return array{released: int, forced: int, failed: int}
      */
@@ -805,8 +1077,8 @@ class SettlementRulesEngine
                                 continue;
                             }
 
-                            $hold->isPooled()
-                                ? $this->expirePooled($hold)
+                            $hold->isSplit()
+                                ? $this->expireSplit($hold)
                                 : $this->release($hold, $hold->remaining(), null, 'Stripe holding limit reached');
                             $summary['forced']++;
                             continue;
@@ -833,28 +1105,26 @@ class SettlementRulesEngine
                 }
             });
 
-        $retries = $this->retryFailedTransfers();
+        $retries = $this->retryFailedMovements();
         $summary['failed'] += $retries['failed'];
 
         return $summary;
     }
 
     /**
-     * A pooled hold at the holding limit goes where the partner said it
-     * should when the hold was opened: back to the payer by default, or in
-     * full to a named party.
+     * A split hold at the holding limit is settled as the partner said when
+     * it was opened: refunded to the payer by default, or released to every
+     * participant.
      */
-    protected function expirePooled(SettlementHold $hold): SettlementHold
+    protected function expireSplit(SettlementHold $hold): SettlementHold
     {
         $reason = 'holding limit reached';
 
-        if (($hold->on_expiry ?? 'refund') === 'refund') {
-            return $this->refund($hold, $hold->remaining(), $reason);
+        if (($hold->on_expiry ?? 'refund') === 'release') {
+            return $this->releaseShares($hold, 100, null, null, $reason);
         }
 
-        return $this->releaseSplit($hold, $hold->remaining(), [
-            ['to' => $hold->on_expiry, 'remainder' => true],
-        ], null, $reason);
+        return $this->refund($hold, $hold->remaining(), $reason);
     }
 
     // ─── Audit ────────────────────────────────────────────────────────

@@ -13,18 +13,21 @@ class SettlementHold extends Model
     public const STATUS_REFUNDED = 'refunded';
     public const STATUS_EXPIRED = 'expired';
 
-    /** A pooled hold whose payment has been requested but not yet made. */
+    /** A split hold whose payment has been requested but not yet made. */
     public const STATUS_AWAITING_PAYMENT = 'awaiting_payment';
 
     /** The money sits in one holding account's own balance. */
     public const FUNDING_ACCOUNT = 'account';
 
-    /** The money sits in the platform balance and is released in shares. */
-    public const FUNDING_POOLED = 'pooled';
+    /**
+     * The payment is divided on arrival and each share sits in its party's
+     * own account until released.
+     */
+    public const FUNDING_SPLIT = 'split';
 
     protected $fillable = [
         'merchant_id', 'funding', 'connected_account_id', 'transaction_id',
-        'reference', 'flow', 'parties', 'on_expiry',
+        'reference', 'flow', 'parties', 'split', 'on_expiry',
         'payment_intent_id', 'charge_id', 'checkout_session_id', 'payment_url',
         'amount', 'amount_released', 'amount_refunded', 'currency',
         'status', 'held_at', 'hold_expires_at', 'released_at',
@@ -33,6 +36,7 @@ class SettlementHold extends Model
 
     protected $casts = [
         'parties' => 'array',
+        'split' => 'array',
         'amount' => 'decimal:2',
         'amount_released' => 'decimal:2',
         'amount_refunded' => 'decimal:2',
@@ -61,9 +65,14 @@ class SettlementHold extends Model
         return $this->hasMany(SettlementTransfer::class)->orderBy('id');
     }
 
-    public function isPooled(): bool
+    public function shares()
     {
-        return $this->funding === self::FUNDING_POOLED;
+        return $this->hasMany(SettlementShare::class)->orderBy('id');
+    }
+
+    public function isSplit(): bool
+    {
+        return $this->funding === self::FUNDING_SPLIT;
     }
 
     /** The connected account id filling a role on this payment, if any. */

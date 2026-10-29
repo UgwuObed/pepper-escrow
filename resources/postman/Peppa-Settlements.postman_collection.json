@@ -6,16 +6,43 @@
   },
   "auth": {
     "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{api_key}}", "type": "string" }]
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_key}}",
+        "type": "string"
+      }
+    ]
   },
   "variable": [
-    { "key": "connected_account_id", "value": "" },
-    { "key": "connected_account_row_id", "value": "" },
-    { "key": "hold_reference", "value": "ORDER-1001" },
-    { "key": "rule_id", "value": "" },
-    { "key": "supplier_account_id", "value": "" },
-    { "key": "freight_account_id", "value": "" },
-    { "key": "pooled_reference", "value": "SHIPMENT-1001" }
+    {
+      "key": "connected_account_id",
+      "value": ""
+    },
+    {
+      "key": "connected_account_row_id",
+      "value": ""
+    },
+    {
+      "key": "hold_reference",
+      "value": "ORDER-1001"
+    },
+    {
+      "key": "rule_id",
+      "value": ""
+    },
+    {
+      "key": "supplier_account_id",
+      "value": ""
+    },
+    {
+      "key": "freight_account_id",
+      "value": ""
+    },
+    {
+      "key": "split_reference",
+      "value": "SHIPMENT-1001"
+    }
   ],
   "item": [
     {
@@ -43,8 +70,22 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/connected-accounts", "host": ["{{base_url}}"], "path": ["api", "connected-accounts"] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/connected-accounts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "connected-accounts"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"seller_email\": \"seller+{{$timestamp}}@example.com\",\n  \"country\": \"GB\"\n}"
@@ -56,7 +97,16 @@
           "name": "List sellers",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/api/connected-accounts", "host": ["{{base_url}}"], "path": ["api", "connected-accounts"] }
+            "url": {
+              "raw": "{{base_url}}/api/connected-accounts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "connected-accounts"
+              ]
+            }
           }
         },
         {
@@ -65,8 +115,14 @@
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/api/connected-accounts/{{connected_account_row_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "connected-accounts", "{{connected_account_row_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "connected-accounts",
+                "{{connected_account_row_id}}"
+              ]
             },
             "description": "`can_hold_funds` is the only field you need before charging. When it is false, `hold_blockers` explains why in plain words."
           }
@@ -77,8 +133,15 @@
             "method": "POST",
             "url": {
               "raw": "{{base_url}}/api/connected-accounts/{{connected_account_row_id}}/onboarding-link",
-              "host": ["{{base_url}}"],
-              "path": ["api", "connected-accounts", "{{connected_account_row_id}}", "onboarding-link"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "connected-accounts",
+                "{{connected_account_row_id}}",
+                "onboarding-link"
+              ]
             },
             "description": "For a seller who abandoned the flow or let the link lapse. Stripe's links are short-lived, so generate one per visit rather than storing it."
           }
@@ -89,8 +152,15 @@
             "method": "POST",
             "url": {
               "raw": "{{base_url}}/api/connected-accounts/{{connected_account_row_id}}/sync",
-              "host": ["{{base_url}}"],
-              "path": ["api", "connected-accounts", "{{connected_account_row_id}}", "sync"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "connected-accounts",
+                "{{connected_account_row_id}}",
+                "sync"
+              ]
             },
             "description": "Normally unnecessary — the Stripe webhook keeps this current. Useful when testing locally without webhooks reaching you."
           }
@@ -101,8 +171,15 @@
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/api/connected-accounts/{{connected_account_row_id}}/dashboard",
-              "host": ["{{base_url}}"],
-              "path": ["api", "connected-accounts", "{{connected_account_row_id}}", "dashboard"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "connected-accounts",
+                "{{connected_account_row_id}}",
+                "dashboard"
+              ]
             },
             "description": "Everything a seller can see about their own money: balance, payouts, every hold with a plain-English explanation, and their onboarding state.\n\nSellers have no Stripe dashboard, so this is the only place they can look. Render it in your own product.\n\nIf Stripe is unreachable, `balance.source` is `unavailable` and `balance.available` is **null**, not zero."
           }
@@ -111,13 +188,28 @@
           "name": "Embedded component session",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/connected-accounts/{{connected_account_row_id}}/account-session",
-              "host": ["{{base_url}}"],
-              "path": ["api", "connected-accounts", "{{connected_account_row_id}}", "account-session"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "connected-accounts",
+                "{{connected_account_row_id}}",
+                "account-session"
+              ]
             },
-            "body": { "mode": "raw", "raw": "{\n  \"components\": [\"payouts\", \"account_management\"]\n}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"components\": [\"payouts\", \"account_management\"]\n}"
+            },
             "description": "A short-lived secret for Stripe's embedded components, so a seller can manage bank details and identity. Peppa is barred from touching those itself."
           }
         }
@@ -143,18 +235,52 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/settlement-rules", "host": ["{{base_url}}"], "path": ["api", "settlement-rules"] },
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Buyer confirmed receipt\",\n  \"condition_type\": \"buyer_confirmation\",\n  \"release_percentage\": 100,\n  \"priority\": 100\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/settlement-rules",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "settlement-rules"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Buyer confirmed receipt\",\n  \"condition_type\": \"buyer_confirmation\",\n  \"release_percentage\": 100,\n  \"priority\": 100\n}"
+            }
           }
         },
         {
           "name": "Create rule — 7 day timer",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/settlement-rules", "host": ["{{base_url}}"], "path": ["api", "settlement-rules"] },
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Release after 7 days\",\n  \"condition_type\": \"elapsed_days\",\n  \"days\": 7,\n  \"priority\": 200\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/settlement-rules",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "settlement-rules"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Release after 7 days\",\n  \"condition_type\": \"elapsed_days\",\n  \"days\": 7,\n  \"priority\": 200\n}"
+            },
             "description": "Fires from the hourly sweep (`php artisan settlements:process-holds`), not from an endpoint.\n\nAlways have a timer. Without one, a payment where nobody confirms and nobody approves sits until Stripe's deadline forces it out."
           }
         },
@@ -162,9 +288,26 @@
           "name": "Create rule — manual approval, 50%",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/settlement-rules", "host": ["{{base_url}}"], "path": ["api", "settlement-rules"] },
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Half on approval\",\n  \"condition_type\": \"manual_approval\",\n  \"release_percentage\": 50,\n  \"priority\": 300\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/settlement-rules",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "settlement-rules"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Half on approval\",\n  \"condition_type\": \"manual_approval\",\n  \"release_percentage\": 50,\n  \"priority\": 300\n}"
+            },
             "description": "Partial releases are capped at what remains, so two 60% rules pay out 100%, not 120%."
           }
         },
@@ -174,16 +317,35 @@
             {
               "listen": "test",
               "script": {
-                "exec": ["pm.test('rejected with 422', () => pm.response.to.have.status(422));"],
+                "exec": [
+                  "pm.test('rejected with 422', () => pm.response.to.have.status(422));"
+                ],
                 "type": "text/javascript"
               }
             }
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/settlement-rules", "host": ["{{base_url}}"], "path": ["api", "settlement-rules"] },
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Too long\",\n  \"condition_type\": \"elapsed_days\",\n  \"days\": 120\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/settlement-rules",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "settlement-rules"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Too long\",\n  \"condition_type\": \"elapsed_days\",\n  \"days\": 120\n}"
+            },
             "description": "Expected to fail. Stripe would force-release before a 120 day rule could fire, so the rule is refused rather than silently never firing."
           }
         },
@@ -191,23 +353,60 @@
           "name": "List rules",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/api/settlement-rules", "host": ["{{base_url}}"], "path": ["api", "settlement-rules"] }
+            "url": {
+              "raw": "{{base_url}}/api/settlement-rules",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "settlement-rules"
+              ]
+            }
           }
         },
         {
           "name": "Update rule",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/settlement-rules/{{rule_id}}", "host": ["{{base_url}}"], "path": ["api", "settlement-rules", "{{rule_id}}"] },
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Buyer confirmed receipt (renamed)\",\n  \"is_active\": true\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/settlement-rules/{{rule_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "settlement-rules",
+                "{{rule_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Buyer confirmed receipt (renamed)\",\n  \"is_active\": true\n}"
+            }
           }
         },
         {
           "name": "Deactivate rule",
           "request": {
             "method": "DELETE",
-            "url": { "raw": "{{base_url}}/api/settlement-rules/{{rule_id}}", "host": ["{{base_url}}"], "path": ["api", "settlement-rules", "{{rule_id}}"] },
+            "url": {
+              "raw": "{{base_url}}/api/settlement-rules/{{rule_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "settlement-rules",
+                "{{rule_id}}"
+              ]
+            },
             "description": "Deactivates rather than deletes, so holds it released keep the explanation of why they released."
           }
         }
@@ -240,8 +439,22 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/holds", "host": ["{{base_url}}"], "path": ["api", "holds"] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/holds",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"reference\": \"ORDER-{{$timestamp}}\",\n  \"connected_account_id\": \"{{connected_account_id}}\",\n  \"amount\": 100.00,\n  \"currency\": \"GBP\",\n  \"payment_intent_id\": \"pi_test_placeholder\"\n}"
@@ -255,12 +468,29 @@
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/api/holds?per_page=25",
-              "host": ["{{base_url}}"],
-              "path": ["api", "holds"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds"
+              ],
               "query": [
-                { "key": "per_page", "value": "25" },
-                { "key": "status", "value": "held", "disabled": true },
-                { "key": "expiring", "value": "1", "disabled": true, "description": "Within 7 days of the Stripe deadline" }
+                {
+                  "key": "per_page",
+                  "value": "25"
+                },
+                {
+                  "key": "status",
+                  "value": "held",
+                  "disabled": true
+                },
+                {
+                  "key": "expiring",
+                  "value": "1",
+                  "disabled": true,
+                  "description": "Within 7 days of the Stripe deadline"
+                }
               ]
             }
           }
@@ -269,7 +499,17 @@
           "name": "Get a hold with its event trail",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/api/holds/{{hold_reference}}", "host": ["{{base_url}}"], "path": ["api", "holds", "{{hold_reference}}"] },
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{hold_reference}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{hold_reference}}"
+              ]
+            },
             "description": "The `events` array is the record of why money moved: every state change, who caused it, and when."
           }
         }
@@ -282,7 +522,18 @@
           "name": "Buyer confirms",
           "request": {
             "method": "POST",
-            "url": { "raw": "{{base_url}}/api/holds/{{hold_reference}}/confirm", "host": ["{{base_url}}"], "path": ["api", "holds", "{{hold_reference}}", "confirm"] },
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{hold_reference}}/confirm",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{hold_reference}}",
+                "confirm"
+              ]
+            },
             "description": "Evaluates the merchant's `buyer_confirmation` rules. If none is active, nothing releases and the attempt is recorded in the event trail — so a missing rule is visible rather than silent."
           }
         },
@@ -290,9 +541,28 @@
           "name": "Manual approval",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/holds/{{hold_reference}}/approve", "host": ["{{base_url}}"], "path": ["api", "holds", "{{hold_reference}}", "approve"] },
-            "body": { "mode": "raw", "raw": "{\n  \"actor\": \"ops:jane\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{hold_reference}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{hold_reference}}",
+                "approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actor\": \"ops:jane\"\n}"
+            },
             "description": "`actor` is a label you assert. It is recorded on the audit trail, not used for authorisation."
           }
         },
@@ -300,9 +570,28 @@
           "name": "Refund (partial)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/holds/{{hold_reference}}/refund", "host": ["{{base_url}}"], "path": ["api", "holds", "{{hold_reference}}", "refund"] },
-            "body": { "mode": "raw", "raw": "{\n  \"amount\": 30.00,\n  \"reason\": \"One item missing\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{hold_reference}}/refund",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{hold_reference}}",
+                "refund"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 30.00,\n  \"reason\": \"One item missing\"\n}"
+            },
             "description": "Omit `amount` to refund everything remaining. Refunds come out of the seller's balance, which is where the money is."
           }
         }
@@ -315,9 +604,28 @@
           "name": "Raise a dispute",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/holds/{{hold_reference}}/dispute", "host": ["{{base_url}}"], "path": ["api", "holds", "{{hold_reference}}", "dispute"] },
-            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Item never arrived\",\n  \"actor\": \"buyer\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{hold_reference}}/dispute",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{hold_reference}}",
+                "dispute"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Item never arrived\",\n  \"actor\": \"buyer\"\n}"
+            },
             "description": "Freezes the hold completely. No rule fires, timers are ignored, and the hourly sweep leaves it alone.\n\n**A dispute does not pause Stripe's holding deadline.** The money still has to leave the seller's account by the same date."
           }
         },
@@ -337,7 +645,18 @@
           ],
           "request": {
             "method": "POST",
-            "url": { "raw": "{{base_url}}/api/holds/{{hold_reference}}/confirm", "host": ["{{base_url}}"], "path": ["api", "holds", "{{hold_reference}}", "confirm"] },
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{hold_reference}}/confirm",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{hold_reference}}",
+                "confirm"
+              ]
+            },
             "description": "Run this after raising a dispute. It returns 200 but the hold stays `disputed` and nothing is paid out — a timer must never release money that is being argued over."
           }
         },
@@ -345,9 +664,29 @@
           "name": "Resolve — pay the seller",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/holds/{{hold_reference}}/dispute/resolve", "host": ["{{base_url}}"], "path": ["api", "holds", "{{hold_reference}}", "dispute", "resolve"] },
-            "body": { "mode": "raw", "raw": "{\n  \"outcome\": \"release\",\n  \"actor\": \"ops:jane\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{hold_reference}}/dispute/resolve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{hold_reference}}",
+                "dispute",
+                "resolve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outcome\": \"release\",\n  \"actor\": \"ops:jane\"\n}"
+            },
             "description": "`outcome` is one of `release`, `refund` or `resume`. Returns 409 if the hold is not disputed."
           }
         },
@@ -355,9 +694,29 @@
           "name": "Resolve — refund the buyer",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/holds/{{hold_reference}}/dispute/resolve", "host": ["{{base_url}}"], "path": ["api", "holds", "{{hold_reference}}", "dispute", "resolve"] },
-            "body": { "mode": "raw", "raw": "{\n  \"outcome\": \"refund\",\n  \"actor\": \"ops:jane\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{hold_reference}}/dispute/resolve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{hold_reference}}",
+                "dispute",
+                "resolve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outcome\": \"refund\",\n  \"actor\": \"ops:jane\"\n}"
+            }
           }
         }
       ]
@@ -369,56 +728,148 @@
         {
           "name": "No API key → 401",
           "event": [
-            { "listen": "test", "script": { "exec": ["pm.test('401', () => pm.response.to.have.status(401));"], "type": "text/javascript" } }
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
           ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
-            "url": { "raw": "{{base_url}}/api/holds", "host": ["{{base_url}}"], "path": ["api", "holds"] }
+            "url": {
+              "raw": "{{base_url}}/api/holds",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds"
+              ]
+            }
           }
         },
         {
           "name": "Unknown reference → 404",
           "event": [
-            { "listen": "test", "script": { "exec": ["pm.test('404', () => pm.response.to.have.status(404));"], "type": "text/javascript" } }
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript"
+              }
+            }
           ],
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/api/holds/NO-SUCH-ORDER", "host": ["{{base_url}}"], "path": ["api", "holds", "NO-SUCH-ORDER"] }
+            "url": {
+              "raw": "{{base_url}}/api/holds/NO-SUCH-ORDER",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "NO-SUCH-ORDER"
+              ]
+            }
           }
         },
         {
           "name": "Dispute with no reason → 422",
           "event": [
-            { "listen": "test", "script": { "exec": ["pm.test('422', () => pm.response.to.have.status(422));"], "type": "text/javascript" } }
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('422', () => pm.response.to.have.status(422));"
+                ],
+                "type": "text/javascript"
+              }
+            }
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/holds/{{hold_reference}}/dispute", "host": ["{{base_url}}"], "path": ["api", "holds", "{{hold_reference}}", "dispute"] },
-            "body": { "mode": "raw", "raw": "{}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{hold_reference}}/dispute",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{hold_reference}}",
+                "dispute"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
           }
         },
         {
           "name": "Resolve a hold that is not disputed → 409",
           "event": [
-            { "listen": "test", "script": { "exec": ["pm.test('409', () => pm.response.to.have.status(409));"], "type": "text/javascript" } }
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript"
+              }
+            }
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/api/holds/{{hold_reference}}/dispute/resolve", "host": ["{{base_url}}"], "path": ["api", "holds", "{{hold_reference}}", "dispute", "resolve"] },
-            "body": { "mode": "raw", "raw": "{\n  \"outcome\": \"release\",\n  \"actor\": \"ops:jane\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{hold_reference}}/dispute/resolve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{hold_reference}}",
+                "dispute",
+                "resolve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outcome\": \"release\",\n  \"actor\": \"ops:jane\"\n}"
+            }
           }
         }
       ]
     },
     {
-      "name": "7 · Split releases (pooled)",
-      "description": "One payment held on the platform and released in shares to several participants when a milestone is confirmed. Create two recipients, the rule, then the hold; pay it through payment_url; then report the milestone.",
+      "name": "7 · Split payments",
+      "description": "One payment divided between several participants the moment it is paid. Each share goes straight into its participant's own account and is held there until a rule releases it; Peppa never holds the money. Create two participants and finish their onboarding, create the rule, open the hold, pay it through payment_url, then report the milestone.",
       "item": [
         {
-          "name": "Create recipient — supplier",
+          "name": "Create participant — supplier",
           "request": {
             "method": "POST",
             "header": [
@@ -441,7 +892,7 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"supplier+{{$timestamp}}@example.com\",\n  \"country\": \"GB\",\n  \"type\": \"recipient\",\n  \"label\": \"Supplier\"\n}"
             },
-            "description": "A participant that receives shares of pooled releases. Open the onboarding_url and finish it before releasing."
+            "description": "Open the onboarding_url and finish it. The account is created locked: its share stays in it until released."
           },
           "event": [
             {
@@ -458,7 +909,7 @@
           ]
         },
         {
-          "name": "Create recipient — freight",
+          "name": "Create participant — freight",
           "request": {
             "method": "POST",
             "header": [
@@ -497,7 +948,7 @@
           ]
         },
         {
-          "name": "Create split rule — delivered, confirmed by freight",
+          "name": "Create rule — delivered, confirmed by freight",
           "request": {
             "method": "POST",
             "header": [
@@ -518,7 +969,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Delivered: pay freight and supplier\",\n  \"condition_type\": \"milestone\",\n  \"milestone\": \"delivered\",\n  \"confirmed_by\": \"freight\",\n  \"destinations\": [\n    {\n      \"to\": \"freight\",\n      \"percentage\": 10\n    },\n    {\n      \"to\": \"platform\",\n      \"percentage\": 2\n    },\n    {\n      \"to\": \"supplier\",\n      \"remainder\": true\n    }\n  ]\n}"
+              "raw": "{\n  \"name\": \"Delivered: release every share\",\n  \"condition_type\": \"milestone\",\n  \"milestone\": \"delivered\",\n  \"confirmed_by\": \"freight\",\n  \"release_percentage\": 100\n}"
             }
           },
           "event": [
@@ -535,7 +986,7 @@
           ]
         },
         {
-          "name": "Open a pooled hold",
+          "name": "Open a split hold",
           "request": {
             "method": "POST",
             "header": [
@@ -556,9 +1007,9 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"funding\": \"pooled\",\n  \"reference\": \"{{pooled_reference}}\",\n  \"amount\": 1000,\n  \"currency\": \"GBP\",\n  \"parties\": {\n    \"supplier\": \"{{supplier_account_id}}\",\n    \"freight\": \"{{freight_account_id}}\"\n  },\n  \"on_expiry\": \"refund\",\n  \"success_url\": \"https://example.com/paid\",\n  \"cancel_url\": \"https://example.com/cancel\"\n}"
+              "raw": "{\n  \"funding\": \"split\",\n  \"reference\": \"{{split_reference}}\",\n  \"amount\": 1000,\n  \"currency\": \"GBP\",\n  \"split\": [\n    {\n      \"to\": \"freight\",\n      \"percentage\": 10\n    },\n    {\n      \"to\": \"platform\",\n      \"percentage\": 2\n    },\n    {\n      \"to\": \"supplier\",\n      \"remainder\": true\n    }\n  ],\n  \"parties\": {\n    \"supplier\": \"{{supplier_account_id}}\",\n    \"freight\": \"{{freight_account_id}}\"\n  },\n  \"on_expiry\": \"refund\",\n  \"success_url\": \"https://example.com/paid\",\n  \"cancel_url\": \"https://example.com/cancel\"\n}"
             },
-            "description": "Returns payment_url. Pay it with a Stripe test card; the hold moves to held once Stripe confirms."
+            "description": "Returns payment_url. Pay it with a Stripe test card; each share then moves into its participant's account and the hold becomes held."
           },
           "event": [
             {
@@ -574,19 +1025,19 @@
           ]
         },
         {
-          "name": "Get the pooled hold",
+          "name": "Get the split hold",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/holds/{{pooled_reference}}",
+              "raw": "{{base_url}}/api/holds/{{split_reference}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "holds",
-                "{{pooled_reference}}"
+                "{{split_reference}}"
               ]
             }
           }
@@ -602,14 +1053,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/holds/{{pooled_reference}}/milestones",
+              "raw": "{{base_url}}/api/holds/{{split_reference}}/milestones",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "holds",
-                "{{pooled_reference}}",
+                "{{split_reference}}",
                 "milestones"
               ]
             },
@@ -617,23 +1068,23 @@
               "mode": "raw",
               "raw": "{\n  \"milestone\": \"delivered\",\n  \"confirmed_by\": \"freight\",\n  \"actor\": \"freight:postman\"\n}"
             },
-            "description": "Releases 10% to freight, keeps 2% on the platform and sends the rest to the supplier. The response lists each transfer."
+            "description": "Pays each participant out from the share already in their account. The response shows every share and movement."
           }
         },
         {
-          "name": "Retry failed transfers",
+          "name": "Retry failed movements",
           "request": {
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/holds/{{pooled_reference}}/transfers/retry",
+              "raw": "{{base_url}}/api/holds/{{split_reference}}/transfers/retry",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "holds",
-                "{{pooled_reference}}",
+                "{{split_reference}}",
                 "transfers",
                 "retry"
               ]
@@ -641,7 +1092,7 @@
           }
         },
         {
-          "name": "Resolve a dispute — release with destinations",
+          "name": "Refund part of the payment",
           "request": {
             "method": "POST",
             "header": [
@@ -651,23 +1102,22 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/holds/{{pooled_reference}}/dispute/resolve",
+              "raw": "{{base_url}}/api/holds/{{split_reference}}/refund",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "holds",
-                "{{pooled_reference}}",
-                "dispute",
-                "resolve"
+                "{{split_reference}}",
+                "refund"
               ]
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"outcome\": \"release\",\n  \"actor\": \"ops:postman\",\n  \"destinations\": [\n    {\n      \"to\": \"supplier\",\n      \"percentage\": 80\n    },\n    {\n      \"to\": \"freight\",\n      \"remainder\": true\n    }\n  ]\n}"
+              "raw": "{\n  \"amount\": 100,\n  \"reason\": \"Two items damaged\"\n}"
             },
-            "description": "Only for a disputed pooled hold. Raise one first with the dispute request in folder 5 using this reference."
+            "description": "Pulled back from every held share in proportion, then refunded to the payer."
           }
         }
       ]
@@ -680,35 +1130,86 @@
           "name": "Bank codes",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/api/escrow/BankCodes", "host": ["{{base_url}}"], "path": ["api", "escrow", "BankCodes"] }
+            "url": {
+              "raw": "{{base_url}}/api/escrow/BankCodes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "escrow",
+                "BankCodes"
+              ]
+            }
           }
         },
         {
           "name": "Client config",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/api/client/config", "host": ["{{base_url}}"], "path": ["api", "client", "config"] }
+            "url": {
+              "raw": "{{base_url}}/api/client/config",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "client",
+                "config"
+              ]
+            }
           }
         },
         {
           "name": "Merchant bank accounts",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/api/client/bank-accounts", "host": ["{{base_url}}"], "path": ["api", "client", "bank-accounts"] }
+            "url": {
+              "raw": "{{base_url}}/api/client/bank-accounts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "client",
+                "bank-accounts"
+              ]
+            }
           }
         },
         {
           "name": "Settlements",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/api/client/settlements", "host": ["{{base_url}}"], "path": ["api", "client", "settlements"] }
+            "url": {
+              "raw": "{{base_url}}/api/client/settlements",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "client",
+                "settlements"
+              ]
+            }
           }
         },
         {
           "name": "Transactions by app",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/api/escrow/Transaction/AppTranx", "host": ["{{base_url}}"], "path": ["api", "escrow", "Transaction", "AppTranx"] }
+            "url": {
+              "raw": "{{base_url}}/api/escrow/Transaction/AppTranx",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "escrow",
+                "Transaction",
+                "AppTranx"
+              ]
+            }
           }
         }
       ]

@@ -5,23 +5,29 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * One line of a split release: a share of a pooled hold on its way to one
- * destination. Lines are written before any money moves, so a release that
- * fails halfway leaves a record of exactly which shares are still owed.
+ * One movement of a split share. Written before the money moves, so a call
+ * that fails halfway leaves a record of exactly what is still owed, and a
+ * retry reuses the same idempotency key so it can never move money twice.
  */
 class SettlementTransfer extends Model
 {
+    /** Payment arrives: the share is transferred into the party's account. */
+    public const KIND_TRANSFER = 'transfer';
+
+    /** Release: the party's account pays the share out to their bank. */
+    public const KIND_PAYOUT = 'payout';
+
+    /** Refund: the share is pulled back from the party's account. */
+    public const KIND_REVERSAL = 'reversal';
+
     public const STATUS_PENDING = 'pending';
     public const STATUS_PAID = 'paid';
     public const STATUS_FAILED = 'failed';
 
-    /** The platform's own share: nothing is transferred, it stays put. */
-    public const STATUS_RETAINED = 'retained';
-
     protected $fillable = [
-        'settlement_hold_id', 'rule_id', 'release_id',
+        'settlement_hold_id', 'settlement_share_id', 'kind', 'rule_id', 'release_id',
         'destination', 'connected_account_id', 'account_id',
-        'amount', 'currency', 'status', 'transfer_id', 'error', 'idempotency_key',
+        'amount', 'currency', 'status', 'provider_id', 'error', 'idempotency_key',
     ];
 
     protected $casts = [
@@ -31,6 +37,11 @@ class SettlementTransfer extends Model
     public function hold()
     {
         return $this->belongsTo(SettlementHold::class, 'settlement_hold_id');
+    }
+
+    public function share()
+    {
+        return $this->belongsTo(SettlementShare::class, 'settlement_share_id');
     }
 
     public function connectedAccount()

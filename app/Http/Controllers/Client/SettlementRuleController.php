@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\SettlementRule;
-use App\Services\SplitCalculator;
 use App\Services\TenantService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -53,7 +52,8 @@ class SettlementRuleController extends Controller
             'milestone' => 'required_if:condition_type,milestone|nullable|string|max:64',
             'confirmed_by' => 'nullable|string|max:64',
             'release_percentage' => 'nullable|integer|min:1|max:100',
-            'destinations' => 'nullable|array',
+            'parties' => 'nullable|array|max:20',
+            'parties.*' => ['string', 'regex:/^[A-Za-z0-9_.:-]{1,64}$/'],
             'priority' => 'nullable|integer|min:1|max:1000',
             'is_active' => 'nullable|boolean',
         ]);
@@ -69,10 +69,6 @@ class SettlementRuleController extends Controller
                 return $this->fail($error, 422);
             }
 
-            if ($request->has('destinations') && ($error = SplitCalculator::validate($request->input('destinations')))) {
-                return $this->fail($error, 422);
-            }
-
             $rule = SettlementRule::create([
                 'merchant_id' => $merchantId,
                 'name' => $request->input('name'),
@@ -80,7 +76,7 @@ class SettlementRuleController extends Controller
                 'condition_type' => $request->input('condition_type'),
                 'config' => $this->config($request),
                 'release_percentage' => (int) $request->input('release_percentage', 100),
-                'destinations' => $request->input('destinations'),
+                'parties' => $request->input('parties') ?: null,
                 'priority' => (int) $request->input('priority', 100),
                 'is_active' => $request->boolean('is_active', true),
             ]);
@@ -102,7 +98,8 @@ class SettlementRuleController extends Controller
             'milestone' => 'nullable|string|max:64',
             'confirmed_by' => 'nullable|string|max:64',
             'release_percentage' => 'nullable|integer|min:1|max:100',
-            'destinations' => 'nullable|array',
+            'parties' => 'nullable|array|max:20',
+            'parties.*' => ['string', 'regex:/^[A-Za-z0-9_.:-]{1,64}$/'],
             'priority' => 'nullable|integer|min:1|max:1000',
             'is_active' => 'nullable|boolean',
         ]);
@@ -129,19 +126,8 @@ class SettlementRuleController extends Controller
                 }
             }
 
-            // Switching a rule between plain and split would silently move it
-            // between account-funded and pooled holds, so the shape is fixed
-            // once created. The shares themselves can change.
-            if ($request->has('destinations')) {
-                if (!$rule->splitsRelease()) {
-                    return $this->fail('Destinations can only be changed on a rule created with them. Create a new rule instead.', 422);
-                }
-
-                if ($error = SplitCalculator::validate($request->input('destinations'))) {
-                    return $this->fail($error, 422);
-                }
-
-                $rule->destinations = $request->input('destinations');
+            if ($request->has('parties')) {
+                $rule->parties = $request->input('parties') ?: null;
             }
 
             if ($request->has('flow')) {
@@ -242,7 +228,7 @@ class SettlementRuleController extends Controller
             'milestone' => $rule->milestone(),
             'confirmed_by' => $rule->confirmedBy(),
             'release_percentage' => (int) $rule->release_percentage,
-            'destinations' => $rule->destinations,
+            'parties' => $rule->parties,
             'priority' => (int) $rule->priority,
             'is_active' => (bool) $rule->is_active,
         ];
