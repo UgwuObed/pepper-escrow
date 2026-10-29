@@ -12,7 +12,10 @@
     { "key": "connected_account_id", "value": "" },
     { "key": "connected_account_row_id", "value": "" },
     { "key": "hold_reference", "value": "ORDER-1001" },
-    { "key": "rule_id", "value": "" }
+    { "key": "rule_id", "value": "" },
+    { "key": "supplier_account_id", "value": "" },
+    { "key": "freight_account_id", "value": "" },
+    { "key": "pooled_reference", "value": "SHIPMENT-1001" }
   ],
   "item": [
     {
@@ -411,7 +414,266 @@
       ]
     },
     {
-      "name": "7 · Existing escrow API",
+      "name": "7 · Split releases (pooled)",
+      "description": "One payment held on the platform and released in shares to several participants when a milestone is confirmed. Create two recipients, the rule, then the hold; pay it through payment_url; then report the milestone.",
+      "item": [
+        {
+          "name": "Create recipient — supplier",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/connected-accounts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "connected-accounts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"supplier+{{$timestamp}}@example.com\",\n  \"country\": \"GB\",\n  \"type\": \"recipient\",\n  \"label\": \"Supplier\"\n}"
+            },
+            "description": "A participant that receives shares of pooled releases. Open the onboarding_url and finish it before releasing."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.data && b.data.account) pm.collectionVariables.set('supplier_account_id', b.data.account.account_id);",
+                  "console.log('Onboarding URL:', b.data && b.data.onboarding_url);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create recipient — freight",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/connected-accounts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "connected-accounts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"freight+{{$timestamp}}@example.com\",\n  \"country\": \"GB\",\n  \"type\": \"recipient\",\n  \"label\": \"Freight forwarder\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.data && b.data.account) pm.collectionVariables.set('freight_account_id', b.data.account.account_id);",
+                  "console.log('Onboarding URL:', b.data && b.data.onboarding_url);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create split rule — delivered, confirmed by freight",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/settlement-rules",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "settlement-rules"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Delivered: pay freight and supplier\",\n  \"condition_type\": \"milestone\",\n  \"milestone\": \"delivered\",\n  \"confirmed_by\": \"freight\",\n  \"destinations\": [\n    {\n      \"to\": \"freight\",\n      \"percentage\": 10\n    },\n    {\n      \"to\": \"platform\",\n      \"percentage\": 2\n    },\n    {\n      \"to\": \"supplier\",\n      \"remainder\": true\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.data) pm.collectionVariables.set('rule_id', b.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Open a pooled hold",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/holds",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"funding\": \"pooled\",\n  \"reference\": \"{{pooled_reference}}\",\n  \"amount\": 1000,\n  \"currency\": \"GBP\",\n  \"parties\": {\n    \"supplier\": \"{{supplier_account_id}}\",\n    \"freight\": \"{{freight_account_id}}\"\n  },\n  \"on_expiry\": \"refund\",\n  \"success_url\": \"https://example.com/paid\",\n  \"cancel_url\": \"https://example.com/cancel\"\n}"
+            },
+            "description": "Returns payment_url. Pay it with a Stripe test card; the hold moves to held once Stripe confirms."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.data) console.log('Pay here:', b.data.payment_url);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get the pooled hold",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{pooled_reference}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{pooled_reference}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Report milestone — delivered",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{pooled_reference}}/milestones",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{pooled_reference}}",
+                "milestones"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"milestone\": \"delivered\",\n  \"confirmed_by\": \"freight\",\n  \"actor\": \"freight:postman\"\n}"
+            },
+            "description": "Releases 10% to freight, keeps 2% on the platform and sends the rest to the supplier. The response lists each transfer."
+          }
+        },
+        {
+          "name": "Retry failed transfers",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{pooled_reference}}/transfers/retry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{pooled_reference}}",
+                "transfers",
+                "retry"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Resolve a dispute — release with destinations",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/holds/{{pooled_reference}}/dispute/resolve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "holds",
+                "{{pooled_reference}}",
+                "dispute",
+                "resolve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outcome\": \"release\",\n  \"actor\": \"ops:postman\",\n  \"destinations\": [\n    {\n      \"to\": \"supplier\",\n      \"percentage\": 80\n    },\n    {\n      \"to\": \"freight\",\n      \"remainder\": true\n    }\n  ]\n}"
+            },
+            "description": "Only for a disputed pooled hold. Raise one first with the dispute request in folder 5 using this reference."
+          }
+        }
+      ]
+    },
+    {
+      "name": "8 · Existing escrow API",
       "description": "The pre-existing Peppa endpoints, unchanged by the Stripe work. Included so one collection covers the whole surface.",
       "item": [
         {

@@ -129,7 +129,7 @@ class ConnectedAccount extends Model
         }
 
         if (!$this->payouts_enabled) {
-            $blockers[] = 'Stripe has not enabled payouts on this account yet.';
+            $blockers[] = 'Payouts are not enabled on this account yet.';
         }
 
         return $blockers;
