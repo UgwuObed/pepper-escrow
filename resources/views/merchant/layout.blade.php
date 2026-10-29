@@ -8,8 +8,12 @@
 </head>
 <body class="bg-gray-100 min-h-screen">
     <div class="flex h-screen overflow-hidden">
-        <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-gray-900 text-white transform -translate-x-full transition-transform duration-200 lg:translate-x-0 lg:static lg:inset-auto">
-            <div class="flex items-center justify-between h-16 px-6 border-b border-gray-700">
+        {{-- flex flex-col is load-bearing: without it the nav's flex-1 has no
+             effect, so it never gets a bounded height and overflow-y-auto
+             never engages. The list then runs off the bottom and takes the
+             logout button with it. --}}
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-gray-900 text-white flex flex-col transform -translate-x-full transition-transform duration-200 lg:translate-x-0 lg:static lg:inset-auto">
+            <div class="flex items-center justify-between h-16 px-6 border-b border-gray-700 shrink-0">
                 <span class="text-xl font-bold">Pepper Escrow</span>
                 <button onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full')" class="lg:hidden text-gray-400 hover:text-white">&times;</button>
             </div>
@@ -29,6 +33,7 @@
                         'merchant.transaction-types' => ['Transaction Types', '🏷️'],
                         'merchant.commission-rules' => ['Commission Rules', '📐'],
                         'merchant.api-keys' => ['API Keys', '🔑'],
+                        'merchant.api-docs' => ['API Docs', '📘'],
                         'merchant.bank-accounts' => ['Bank Accounts', '🏧'],
                         'merchant.notifications' => ['Notifications', '🔔'],
                         'merchant.settings' => ['Settings', '⚙️'],
@@ -42,7 +47,7 @@
                     </a>
                 @endforeach
             </nav>
-            <div class="px-4 py-4 border-t border-gray-700">
+            <div class="px-4 py-4 border-t border-gray-700 shrink-0">
                 <a href="{{ route('merchant.logout') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-red-600 hover:text-white transition-colors">
                     <span>🚪</span>
                     <span>Logout</span>

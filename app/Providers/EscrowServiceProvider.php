@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\PaymentGateways\FlutterwaveGateway;
 use App\PaymentGateways\PaystackGateway;
 use App\PaymentGateways\SeerBitGateway;
+use App\PaymentGateways\StripeConnectGateway;
 use App\PaymentGateways\StripeGateway;
 use App\PaymentGateways\VfdGateway;
 use App\Services\EscrowPaymentService;
@@ -27,6 +28,10 @@ class EscrowServiceProvider extends ServiceProvider
 
             if (config('gateways.seerbit.public_key')) {
                 $service->registerGateway('seerbit', new SeerBitGateway(config('gateways.seerbit')));
+            }
+
+            if (config('gateways.stripe_connect.secret_key')) {
+                $service->registerGateway('stripe_connect', new StripeConnectGateway(config('gateways.stripe_connect')));
             }
 
             if (config('gateways.flutterwave.secret_key')) {
