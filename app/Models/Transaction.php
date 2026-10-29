@@ -12,7 +12,7 @@ class Transaction extends Model
 
     protected $factory = TransactionFactory::class;
     protected $fillable = [
-        'posting_date', 'transcode', 'tempcode', 'customer_email', 'merchant_email',
+        'posting_date', 'transcode', 'tempcode', 'customer_email', 'customer_phone', 'merchant_email',
         'merchantid', 'description', 'amount', 'country', 'currency', 'startdate',
         'enddate', 'fulfill_days', 'payment_gateway', 'payment_date', 'payment_status',
         'trans_status', 'refunddate', 'releasedate', 'stoprefunddate', 'refunded',

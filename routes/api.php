@@ -163,6 +163,17 @@ Route::group([
     Route::post('accounts/{id}/deactivate', [\App\Http\Controllers\Client\BankTransferController::class, 'deactivate']);
 });
 
+// Banks and name enquiry (authenticated by API key). Backs the bank picker and
+// the beneficiary confirmation on the payment creation screens.
+Route::group([
+    'prefix' => 'banks',
+    'middleware' => 'auth.api-key',
+], function () {
+    Route::get('/', [\App\Http\Controllers\Client\BankController::class, 'index']);
+    Route::post('resolve', [\App\Http\Controllers\Client\BankController::class, 'resolveAccount'])
+        ->middleware('throttle:20,1');
+});
+
 // Public bank transfer webhook (no API key — gateways call this)
 Route::group([
     'prefix' => 'bank-transfer',

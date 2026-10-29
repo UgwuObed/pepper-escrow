@@ -1147,7 +1147,14 @@ class EscrowController extends Controller
                     try {
                         $this->paymentService->processEscrowRefund($tranx, $request['reasons']);
                     } catch (Exception $e) {
-                        // Log but don't fail — refund request is already recorded
+                        // The refund request is already recorded, so don't fail
+                        // the call — but a refund that never reached the gateway
+                        // must leave a trace, or money silently stays put.
+                        Log::error('Escrow refund failed at gateway', [
+                            'transcode' => $tranx->transcode,
+                            'gateway' => $tranx->payment_gateway,
+                            'error' => $e->getMessage(),
+                        ]);
                     }
                 }
 
@@ -1283,7 +1290,7 @@ class EscrowController extends Controller
     public function getBankCodes(Request $request)
     {
         try {
-            $path = resource_path('assets/data/pepperest_countries.json');
+            $path = resource_path('assets/data/pepperest_Banks.json');
             if (!file_exists($path)) {
                 return response()->json([
                     "ResponseStatus" => "Unsuccessful",

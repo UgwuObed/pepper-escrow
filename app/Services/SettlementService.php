@@ -11,6 +11,7 @@ use App\Models\Transaction;
 use App\Services\NotificationService;
 use App\PaymentGateways\FlutterwaveGateway;
 use App\PaymentGateways\PaystackGateway;
+use App\PaymentGateways\VfdGateway;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -43,7 +44,10 @@ class SettlementService
         ?string $gateway = null,
         ?string $currency = 'NGN',
     ): Settlement {
-        $gateway = $gateway ?? config('escrow.default_gateway', 'paystack');
+        // Payouts resolve independently of the card gateway, so a merchant on
+        // Paystack checkout can still be settled over VFD.
+        $gateway = $gateway ?? config('escrow.default_settlement_gateway')
+            ?? config('escrow.default_gateway', 'paystack');
 
         $totalAmount = 0;
         $totalCommission = 0;
@@ -120,6 +124,7 @@ class SettlementService
             $result = match ($settlement->payment_gateway) {
                 'paystack' => $this->processPaystackPayout($gateway, $bankAccount, $settlement, $reference),
                 'flutterwave' => $this->processFlutterwavePayout($gateway, $bankAccount, $settlement, $reference),
+                'vfd' => $this->processVfdPayout($gateway, $bankAccount, $settlement, $reference),
                 default => throw new \InvalidArgumentException("Unsupported gateway: {$settlement->payment_gateway}"),
             };
 
@@ -279,6 +284,49 @@ class SettlementService
         return $settlement->fresh();
     }
 
+    /**
+     * VFD reports payouts as payout.success / payout.failed rather than a
+     * status field on a transfer event.
+     */
+    public function handleVfdTransferWebhook(array $payload): ?Settlement
+    {
+        $event = $payload['event'] ?? '';
+        if (!str_starts_with($event, 'payout.')) {
+            return null;
+        }
+
+        $data = $payload['data'] ?? [];
+        $reference = $data['reference'] ?? null;
+
+        if (!$reference) {
+            return null;
+        }
+
+        $settlement = Settlement::where('gateway_transfer_ref', $reference)
+            ->orWhere('batch_number', $reference)
+            ->first();
+
+        if (!$settlement) {
+            return null;
+        }
+
+        if ($event === 'payout.success') {
+            $settlement->markCompleted();
+            foreach ($settlement->items as $item) {
+                $item->markPaid();
+            }
+        } elseif ($event === 'payout.failed') {
+            $settlement->markFailed($payload['message'] ?? 'VFD reported payout failure');
+            foreach ($settlement->items as $item) {
+                if ($item->status === 'paid') {
+                    $item->markFailed('VFD: payout failed');
+                }
+            }
+        }
+
+        return $settlement->fresh();
+    }
+
     protected function processPaystackPayout(PaystackGateway $gateway, MerchantBankAccount $bank, Settlement $settlement, string $reference): array
     {
         $recipient = $gateway->createTransferRecipient([
@@ -317,6 +365,28 @@ class SettlementService
         return [
             'status' => $result['status'],
             'reference' => (string) ($result['transfer_id'] ?? $result['reference']),
+        ];
+    }
+
+    /**
+     * VFD needs no stored recipient — the gateway runs name enquiry on the
+     * merchant's account and builds the transfer in one call.
+     */
+    protected function processVfdPayout(VfdGateway $gateway, MerchantBankAccount $bank, Settlement $settlement, string $reference): array
+    {
+        $result = $gateway->initiateTransfer(
+            [
+                'account_number' => $bank->account_number,
+                'bank_code' => $bank->bank_code,
+            ],
+            (float) $settlement->net_amount,
+            $reference,
+            "Settlement batch {$settlement->batch_number}",
+        );
+
+        return [
+            'status' => $result['status'],
+            'reference' => (string) ($result['transfer_code'] ?? $result['reference']),
         ];
     }
 

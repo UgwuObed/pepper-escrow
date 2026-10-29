@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Client;
 
+use App\Http\Controllers\Concerns\VerifiesGatewayWebhooks;
 use App\Http\Controllers\Controller;
 use App\Models\Transaction;
 use App\Models\VirtualAccount;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\Validator;
 
 class BankTransferController extends Controller
 {
+    use VerifiesGatewayWebhooks;
+
     protected TenantService $tenantService;
     protected VirtualAccountService $vaService;
 
@@ -28,7 +31,7 @@ class BankTransferController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'transaction_code' => 'required|string|exists:transactions,transcode',
-            'gateway' => 'nullable|in:paystack,flutterwave',
+            'gateway' => 'nullable|in:vfd,paystack,flutterwave',
         ]);
 
         if ($validator->fails()) {
@@ -151,9 +154,14 @@ class BankTransferController extends Controller
             $payload = $request->all();
             Log::info("Bank transfer webhook received from {$gateway}", $payload);
 
+            if (!$this->webhookIsAuthentic($request, $gateway)) {
+                return response()->json(['status' => 'error', 'message' => 'Invalid signature'], 401);
+            }
+
             $transaction = match ($gateway) {
                 'paystack' => $this->vaService->handlePaystackCredit($payload),
                 'flutterwave' => $this->vaService->handleFlutterwaveCredit($payload),
+                'vfd' => $this->vaService->handleVfdCredit($payload),
                 default => throw new \Exception("Unsupported gateway: {$gateway}"),
             };
 

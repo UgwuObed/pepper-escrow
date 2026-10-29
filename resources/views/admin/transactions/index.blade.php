@@ -46,6 +46,7 @@
                 <label class="block text-xs text-gray-600 mb-1">Gateway</label>
                 <select name="gateway" class="w-full px-3 py-2 border rounded text-sm">
                     <option value="">All</option>
+                    <option value="vfd" {{ request('gateway') === 'vfd' ? 'selected' : '' }}>VFD</option>
                     <option value="paystack" {{ request('gateway') === 'paystack' ? 'selected' : '' }}>Paystack</option>
                     <option value="stripe" {{ request('gateway') === 'stripe' ? 'selected' : '' }}>Stripe</option>
                     <option value="flutterwave" {{ request('gateway') === 'flutterwave' ? 'selected' : '' }}>Flutterwave</option>

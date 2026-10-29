@@ -7,6 +7,7 @@ use App\PaymentGateways\PaystackGateway;
 use App\PaymentGateways\SeerBitGateway;
 use App\PaymentGateways\StripeConnectGateway;
 use App\PaymentGateways\StripeGateway;
+use App\PaymentGateways\VfdGateway;
 use App\Services\EscrowPaymentService;
 use Illuminate\Support\ServiceProvider;
 
@@ -35,6 +36,10 @@ class EscrowServiceProvider extends ServiceProvider
 
             if (config('gateways.flutterwave.secret_key')) {
                 $service->registerGateway('flutterwave', new FlutterwaveGateway(config('gateways.flutterwave')));
+            }
+
+            if (config('gateways.vfd.consumer_key')) {
+                $service->registerGateway('vfd', new VfdGateway(config('gateways.vfd')));
             }
 
             return $service;
