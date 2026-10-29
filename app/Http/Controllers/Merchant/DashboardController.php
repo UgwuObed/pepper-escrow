@@ -117,8 +117,8 @@ class DashboardController extends Controller
     }
 
     /**
-     * The Postman collection, served from the repo so it cannot drift from
-     * the documentation it was written against.
+     * The Postman collection. It lives in resources/ rather than docs/ because
+     * merchants download it from here, so it has to ship with the app.
      */
     public function postmanCollection(): BinaryFileResponse
     {
@@ -147,7 +147,7 @@ class DashboardController extends Controller
 
     protected function docFile(string $name): BinaryFileResponse
     {
-        $path = base_path('docs/stripe-connect/' . $name);
+        $path = resource_path('postman/' . $name);
 
         abort_unless(is_file($path), 404);
 
