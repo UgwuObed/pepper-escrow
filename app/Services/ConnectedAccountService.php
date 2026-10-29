@@ -35,28 +35,38 @@ class ConnectedAccountService
     }
 
     /**
-     * Create the seller's Stripe account and arm the hold straight away.
+     * Create the account holder's Stripe account.
      *
-     * Payouts are set to manual in the same breath as creation on purpose: an
-     * account that takes a payment before being armed pays that payment
-     * straight out on Stripe's rolling schedule, and there is no way to pull
-     * it back.
+     * A holding account is armed straight away: payouts are set to manual in
+     * the same breath as creation, because an account that takes a payment
+     * before being armed pays it straight out on Stripe's rolling schedule
+     * and there is no way to pull it back. A recipient account needs no
+     * arming, since money only reaches it once a release has been decided.
      */
-    public function onboard(Merchant $merchant, string $sellerEmail, string $country): ConnectedAccount
-    {
+    public function onboard(
+        Merchant $merchant,
+        string $email,
+        string $country,
+        string $type = ConnectedAccount::TYPE_HOLDING,
+        ?string $label = null,
+    ): ConnectedAccount {
         $gateway = $this->gateway();
 
-        $created = $gateway->createConnectedAccount($sellerEmail, $country, [
+        $created = $gateway->createConnectedAccount($email, $country, [
             'merchant_id' => (string) $merchant->id,
-        ]);
+        ], $type);
 
-        $gateway->setManualPayouts($created['account_id']);
+        if ($type === ConnectedAccount::TYPE_HOLDING) {
+            $gateway->setManualPayouts($created['account_id']);
+        }
 
         $account = ConnectedAccount::create([
             'merchant_id' => $merchant->id,
             'provider' => 'stripe',
+            'account_type' => $type,
             'account_id' => $created['account_id'],
-            'seller_email' => $sellerEmail,
+            'seller_email' => $email,
+            'label' => $label,
             'country' => strtoupper($country),
             'holding_period_days' => $created['holding_period_days'],
         ]);
@@ -115,7 +125,7 @@ class ConnectedAccountService
         // An account that drifts out of the holding configuration is a
         // standing risk, not a one-off: funds already sitting in it may no
         // longer be under our control.
-        if ($account->details_submitted && !$account->canHoldFunds()) {
+        if (!$account->isRecipient() && $account->details_submitted && !$account->canHoldFunds()) {
             Log::warning('Connected account cannot hold funds', [
                 'account_id' => $account->account_id,
                 'blockers' => $account->holdBlockers(),
