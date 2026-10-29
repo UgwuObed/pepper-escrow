@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ConnectedAccount;
 use App\Models\SettlementHold;
+use App\Models\SettlementTransfer;
 use App\PaymentGateways\StripeConnectGateway;
 use Illuminate\Support\Facades\Log;
 
@@ -54,9 +55,36 @@ class SellerDashboardService
             ],
             'onboarding' => $this->onboarding($account),
             'holds' => $this->holds($account),
+            'received' => $this->received($account),
             'balance' => $this->balance($account),
             'payouts' => $this->payouts($account),
         ];
+    }
+
+    /**
+     * Shares of pooled releases sent to this account, newest first. A
+     * recipient has no holds of its own, so this is what it is waiting on
+     * and what has arrived.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function received(ConnectedAccount $account, int $limit = 50): array
+    {
+        return SettlementTransfer::where('connected_account_id', $account->id)
+            ->with('hold:id,reference')
+            ->latest('id')
+            ->limit($limit)
+            ->get()
+            ->map(fn (SettlementTransfer $t) => [
+                'reference' => $t->hold?->reference,
+                'as' => $t->destination,
+                'amount' => (float) $t->amount,
+                'currency' => $t->currency,
+                'status' => $t->status,
+                'transfer_id' => $t->transfer_id,
+                'at' => $t->created_at?->toIso8601String(),
+            ])
+            ->all();
     }
 
     /**

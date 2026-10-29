@@ -70,6 +70,7 @@ class SellerOnboardingController extends Controller
             // same account, not collect a second one. Stripe charges nothing
             // for abandoned accounts but a seller with two is a support call.
             $existing = ConnectedAccount::byMerchant($merchant->id)
+                ->where('account_type', ConnectedAccount::TYPE_HOLDING)
                 ->where('seller_email', $email)
                 ->first();
 

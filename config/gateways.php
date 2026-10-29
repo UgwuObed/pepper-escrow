@@ -41,6 +41,7 @@ return [
         'secret_key' => env('STRIPE_SECRET_KEY'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
         'connect_webhook_secret' => env('STRIPE_CONNECT_WEBHOOK_SECRET'),
+        'platform_country' => env('STRIPE_PLATFORM_COUNTRY', 'GB'),
         'onboarding_refresh_url' => env('STRIPE_ONBOARDING_REFRESH_URL'),
         'onboarding_return_url' => env('STRIPE_ONBOARDING_RETURN_URL'),
     ],

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ConnectedAccount;
 use App\Models\SettlementHold;
 use App\Services\SettlementRulesEngine;
+use App\Services\SplitCalculator;
 use App\Services\TenantService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -37,10 +38,19 @@ class SettlementHoldController extends Controller
     }
 
     /**
-     * Open a hold against a payment that has landed in a seller's balance.
+     * Open a hold.
+     *
+     * With funding "account" (the default) the payment has already landed in
+     * a holding account's balance and this records it. With funding "pooled"
+     * Peppa collects the payment into the platform balance and returns a
+     * payment_url to send the payer to; the hold starts as awaiting_payment.
      */
     public function store(Request $request): JsonResponse
     {
+        if ($request->input('funding') === SettlementHold::FUNDING_POOLED) {
+            return $this->storePooled($request);
+        }
+
         $validator = Validator::make($request->all(), [
             'reference' => 'required|string|max:191',
             'connected_account_id' => 'required|string',
@@ -106,15 +116,98 @@ class SettlementHoldController extends Controller
         }
     }
 
+    protected function storePooled(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'reference' => 'required|string|max:191',
+            'amount' => 'required|numeric|min:0.5',
+            'currency' => 'required|string|size:3',
+            'flow' => 'nullable|string|max:64',
+            'parties' => 'nullable|array|max:20',
+            'parties.*' => 'string|starts_with:acct_',
+            'on_expiry' => 'nullable|string|max:64',
+            'payer_email' => 'nullable|email',
+            'success_url' => 'required|url',
+            'cancel_url' => 'required|url',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->fail($validator->errors()->first(), 422);
+        }
+
+        try {
+            $merchant = $this->merchant($request);
+            $reference = $request->input('reference');
+
+            $existing = SettlementHold::forMerchant($merchant->id)->where('reference', $reference)->first();
+
+            if ($existing) {
+                return response()->json([
+                    'status' => 'success',
+                    'data' => $this->present($existing),
+                    'message' => 'Hold already exists for this reference.',
+                ], 200);
+            }
+
+            $parties = (array) $request->input('parties', []);
+
+            // Every party has to be one of this partner's recipient accounts
+            // now, rather than surfacing as a failed release weeks later.
+            $known = ConnectedAccount::byMerchant($merchant->id)
+                ->where('account_type', ConnectedAccount::TYPE_RECIPIENT)
+                ->whereIn('account_id', array_values($parties))
+                ->pluck('account_id')
+                ->all();
+
+            $unknown = array_keys(array_diff($parties, $known));
+
+            if ($unknown) {
+                return $this->fail(
+                    'These parties are not recipient accounts of yours: ' . implode(', ', $unknown) . '.',
+                    422
+                );
+            }
+
+            $onExpiry = $request->input('on_expiry', 'refund');
+
+            if ($onExpiry !== 'refund' && !array_key_exists($onExpiry, $parties)) {
+                return $this->fail('on_expiry must be "refund" or the name of one of the parties.', 422);
+            }
+
+            $hold = $this->engine->openPooled(
+                $merchant->id,
+                $reference,
+                (float) $request->input('amount'),
+                strtoupper($request->input('currency')),
+                $parties,
+                $request->input('flow'),
+                $onExpiry,
+                $request->input('payer_email'),
+                $request->input('success_url'),
+                $request->input('cancel_url'),
+            );
+
+            return response()->json(['status' => 'success', 'data' => $this->present($hold)], 201);
+        } catch (Exception $e) {
+            Log::error('Opening a pooled hold failed', ['error' => $e->getMessage()]);
+
+            return $this->fail($e->getMessage(), 500);
+        }
+    }
+
     public function index(Request $request): JsonResponse
     {
         try {
             $merchant = $this->merchant($request);
 
-            $query = SettlementHold::forMerchant($merchant->id)->with('connectedAccount');
+            $query = SettlementHold::forMerchant($merchant->id)->with(['connectedAccount', 'transfers']);
 
             if ($status = $request->query('status')) {
                 $query->where('status', $status);
+            }
+
+            if ($flow = $request->query('flow')) {
+                $query->where('flow', $flow);
             }
 
             if ($request->boolean('expiring')) {
@@ -159,6 +252,41 @@ class SettlementHoldController extends Controller
 
     // ─── Conditions ───────────────────────────────────────────────────
 
+    /**
+     * Report a milestone: goods shipped, delivered, inspected, accepted,
+     * signed off. Rules decide what, if anything, it releases and to whom.
+     */
+    public function milestone(Request $request, string $reference): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'milestone' => 'required|string|max:64',
+            'confirmed_by' => 'nullable|string|max:64',
+            'actor' => 'nullable|string|max:100',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->fail($validator->errors()->first(), 422);
+        }
+
+        $milestone = $request->input('milestone');
+        $confirmedBy = $request->input('confirmed_by');
+        $actor = $request->input('actor');
+
+        return $this->act($request, $reference, function (SettlementHold $hold) use ($milestone, $confirmedBy, $actor) {
+            return $this->engine->milestoneReached($hold, $milestone, $confirmedBy, $actor);
+        });
+    }
+
+    /** Resend any share of a release whose transfer failed. */
+    public function retryTransfers(Request $request, string $reference): JsonResponse
+    {
+        return $this->act($request, $reference, function (SettlementHold $hold) {
+            $this->engine->retryFailedTransfers($hold);
+
+            return $hold->fresh();
+        });
+    }
+
     public function confirm(Request $request, string $reference): JsonResponse
     {
         return $this->act($request, $reference, function (SettlementHold $hold) {
@@ -196,17 +324,24 @@ class SettlementHoldController extends Controller
         $validator = Validator::make($request->all(), [
             'outcome' => 'required|in:release,refund,resume',
             'actor' => 'required|string|max:100',
+            'destinations' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
             return $this->fail($validator->errors()->first(), 422);
         }
 
+        $destinations = $request->input('destinations');
+
+        if ($destinations !== null && ($error = SplitCalculator::validate($destinations))) {
+            return $this->fail($error, 422);
+        }
+
         $outcome = $request->input('outcome');
         $actor = $request->input('actor');
 
-        return $this->act($request, $reference, function (SettlementHold $hold) use ($outcome, $actor) {
-            return $this->engine->resolveDispute($hold, $outcome, $actor);
+        return $this->act($request, $reference, function (SettlementHold $hold) use ($outcome, $actor, $destinations) {
+            return $this->engine->resolveDispute($hold, $outcome, $actor, $destinations);
         });
     }
 
@@ -271,7 +406,7 @@ class SettlementHoldController extends Controller
     protected function find(Request $request, string $reference): SettlementHold
     {
         return SettlementHold::forMerchant($this->merchant($request)->id)
-            ->with(['connectedAccount', 'events'])
+            ->with(['connectedAccount', 'events', 'transfers'])
             ->where('reference', $reference)
             ->firstOrFail();
     }
@@ -288,6 +423,8 @@ class SettlementHoldController extends Controller
     {
         $data = [
             'reference' => $hold->reference,
+            'funding' => $hold->funding ?? SettlementHold::FUNDING_ACCOUNT,
+            'flow' => $hold->flow,
             'status' => $hold->status,
             'amount' => (float) $hold->amount,
             'amount_released' => (float) $hold->amount_released,
@@ -301,6 +438,26 @@ class SettlementHoldController extends Controller
             'release_reason' => $hold->release_reason,
             'is_disputed' => $hold->isFrozen(),
         ];
+
+        if ($hold->isPooled()) {
+            $data['parties'] = $hold->parties ?? [];
+            $data['on_expiry'] = $hold->on_expiry;
+
+            if ($hold->status === SettlementHold::STATUS_AWAITING_PAYMENT) {
+                $data['payment_url'] = $hold->payment_url;
+            }
+
+            $data['transfers'] = $hold->transfers->map(fn ($t) => [
+                'release_id' => $t->release_id,
+                'to' => $t->destination,
+                'account_id' => $t->account_id,
+                'amount' => (float) $t->amount,
+                'currency' => $t->currency,
+                'status' => $t->status,
+                'transfer_id' => $t->transfer_id,
+                'error' => $t->error,
+            ])->values();
+        }
 
         if ($withEvents) {
             $data['events'] = $hold->events->map(fn ($e) => [

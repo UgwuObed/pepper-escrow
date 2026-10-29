@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Concerns\VerifiesGatewayWebhooks;
 use App\Http\Controllers\Controller;
 use App\Models\ConnectedAccount;
+use App\Models\SettlementHold;
 use App\Services\ConnectedAccountService;
 use App\Services\SellerDashboardService;
+use App\Services\SettlementRulesEngine;
 use App\Services\TenantService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -29,14 +31,23 @@ class ConnectedAccountController extends Controller
     }
 
     /**
-     * Create the seller's Stripe account and return a link for them to finish
-     * Stripe's own onboarding.
+     * Create an account holder's Stripe account and return a link for them to
+     * finish Stripe's own onboarding.
+     *
+     * `email` is the neutral name; `seller_email` is still accepted so
+     * existing integrations keep working.
      */
     public function create(Request $request): JsonResponse
     {
+        if (!$request->filled('email') && $request->filled('seller_email')) {
+            $request->merge(['email' => $request->input('seller_email')]);
+        }
+
         $validator = Validator::make($request->all(), [
-            'seller_email' => 'required|email',
+            'email' => 'required|email',
             'country' => 'required|string|size:2',
+            'type' => 'nullable|in:' . implode(',', ConnectedAccount::TYPES),
+            'label' => 'nullable|string|max:191',
         ]);
 
         if ($validator->fails()) {
@@ -51,8 +62,10 @@ class ConnectedAccountController extends Controller
 
             $account = $this->accounts->onboard(
                 $merchant,
-                $request->input('seller_email'),
+                $request->input('email'),
                 $request->input('country'),
+                $request->input('type', ConnectedAccount::TYPE_HOLDING),
+                $request->input('label'),
             );
 
             $link = $this->accounts->onboardingLink($account);
@@ -79,7 +92,9 @@ class ConnectedAccountController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Merchant not found.'], 404);
         }
 
-        $accounts = ConnectedAccount::byMerchant($merchant->id)->get()
+        $accounts = ConnectedAccount::byMerchant($merchant->id)
+            ->when($request->query('type'), fn ($q, $type) => $q->where('account_type', $type))
+            ->get()
             ->map(fn (ConnectedAccount $a) => $this->present($a));
 
         return response()->json(['status' => 'success', 'data' => $accounts]);
@@ -155,6 +170,13 @@ class ConnectedAccountController extends Controller
                     'status' => 'success',
                     'account' => $account?->account_id,
                 ]);
+            }
+
+            // A pooled hold's payment has landed in the platform balance.
+            // Platform events carry no "account"; one that does is a direct
+            // charge on a holding account and is not ours to act on here.
+            if ($type === 'checkout.session.completed' && empty($payload['account'])) {
+                return $this->pooledPaymentCompleted($payload['data']['object'] ?? []);
             }
 
             // Payout events belong to the release side of the flow, which the
@@ -233,11 +255,38 @@ class ConnectedAccountController extends Controller
     /**
      * @return array<string, mixed>
      */
+    protected function pooledPaymentCompleted(array $session): JsonResponse
+    {
+        $holdId = $session['metadata']['peppa_hold_id'] ?? null;
+        $paymentIntent = $session['payment_intent'] ?? null;
+
+        if (!$holdId || !is_string($paymentIntent)) {
+            return response()->json(['status' => 'ok', 'message' => 'Not a pooled hold payment']);
+        }
+
+        $hold = SettlementHold::where('id', $holdId)
+            ->where('checkout_session_id', $session['id'] ?? null)
+            ->first();
+
+        if (!$hold) {
+            Log::warning('Pooled payment for an unknown hold', ['hold_id' => $holdId]);
+
+            return response()->json(['status' => 'ok', 'message' => 'Unknown hold']);
+        }
+
+        $hold = app(SettlementRulesEngine::class)->paymentReceived($hold, $paymentIntent);
+
+        return response()->json(['status' => 'success', 'hold' => $hold->reference, 'hold_status' => $hold->status]);
+    }
+
     protected function present(ConnectedAccount $account): array
     {
         return [
             'id' => $account->id,
             'account_id' => $account->account_id,
+            'type' => $account->account_type ?? ConnectedAccount::TYPE_HOLDING,
+            'label' => $account->label,
+            'email' => $account->seller_email,
             'seller_email' => $account->seller_email,
             'country' => $account->country,
             'charges_enabled' => $account->charges_enabled,
@@ -246,6 +295,8 @@ class ConnectedAccountController extends Controller
             'holding_period_days' => $account->holding_period_days,
             'can_hold_funds' => $account->canHoldFunds(),
             'hold_blockers' => $account->holdBlockers(),
+            'can_receive_transfers' => $account->canReceiveTransfers(),
+            'transfer_blockers' => $account->isRecipient() ? $account->transferBlockers() : [],
             'requirements_due' => $account->requirements_due ?? [],
             'status_synced_at' => $account->status_synced_at,
         ];

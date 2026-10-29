@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\SettlementRule;
+use App\Services\SplitCalculator;
 use App\Services\TenantService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -46,9 +47,13 @@ class SettlementRuleController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:191',
+            'flow' => 'nullable|string|max:64',
             'condition_type' => ['required', 'in:' . implode(',', SettlementRule::CONDITIONS)],
             'days' => 'required_if:condition_type,elapsed_days|nullable|integer|min:1|max:730',
+            'milestone' => 'required_if:condition_type,milestone|nullable|string|max:64',
+            'confirmed_by' => 'nullable|string|max:64',
             'release_percentage' => 'nullable|integer|min:1|max:100',
+            'destinations' => 'nullable|array',
             'priority' => 'nullable|integer|min:1|max:1000',
             'is_active' => 'nullable|boolean',
         ]);
@@ -64,12 +69,18 @@ class SettlementRuleController extends Controller
                 return $this->fail($error, 422);
             }
 
+            if ($request->has('destinations') && ($error = SplitCalculator::validate($request->input('destinations')))) {
+                return $this->fail($error, 422);
+            }
+
             $rule = SettlementRule::create([
                 'merchant_id' => $merchantId,
                 'name' => $request->input('name'),
+                'flow' => $request->input('flow'),
                 'condition_type' => $request->input('condition_type'),
                 'config' => $this->config($request),
                 'release_percentage' => (int) $request->input('release_percentage', 100),
+                'destinations' => $request->input('destinations'),
                 'priority' => (int) $request->input('priority', 100),
                 'is_active' => $request->boolean('is_active', true),
             ]);
@@ -86,8 +97,12 @@ class SettlementRuleController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'nullable|string|max:191',
+            'flow' => 'nullable|string|max:64',
             'days' => 'nullable|integer|min:1|max:730',
+            'milestone' => 'nullable|string|max:64',
+            'confirmed_by' => 'nullable|string|max:64',
             'release_percentage' => 'nullable|integer|min:1|max:100',
+            'destinations' => 'nullable|array',
             'priority' => 'nullable|integer|min:1|max:1000',
             'is_active' => 'nullable|boolean',
         ]);
@@ -104,6 +119,33 @@ class SettlementRuleController extends Controller
                     return $this->fail($error, 422);
                 }
                 $rule->config = array_merge($rule->config ?? [], ['days' => (int) $request->input('days')]);
+            }
+
+            if ($rule->condition_type === SettlementRule::CONDITION_MILESTONE) {
+                foreach (['milestone', 'confirmed_by'] as $field) {
+                    if ($request->has($field)) {
+                        $rule->config = array_merge($rule->config ?? [], [$field => $request->input($field)]);
+                    }
+                }
+            }
+
+            // Switching a rule between plain and split would silently move it
+            // between account-funded and pooled holds, so the shape is fixed
+            // once created. The shares themselves can change.
+            if ($request->has('destinations')) {
+                if (!$rule->splitsRelease()) {
+                    return $this->fail('Destinations can only be changed on a rule created with them. Create a new rule instead.', 422);
+                }
+
+                if ($error = SplitCalculator::validate($request->input('destinations'))) {
+                    return $this->fail($error, 422);
+                }
+
+                $rule->destinations = $request->input('destinations');
+            }
+
+            if ($request->has('flow')) {
+                $rule->flow = $request->input('flow');
             }
 
             foreach (['name', 'release_percentage', 'priority'] as $field) {
@@ -163,9 +205,14 @@ class SettlementRuleController extends Controller
 
     protected function config(Request $request): array
     {
-        return $request->input('condition_type') === SettlementRule::CONDITION_ELAPSED_DAYS
-            ? ['days' => (int) $request->input('days')]
-            : [];
+        return match ($request->input('condition_type')) {
+            SettlementRule::CONDITION_ELAPSED_DAYS => ['days' => (int) $request->input('days')],
+            SettlementRule::CONDITION_MILESTONE => array_filter([
+                'milestone' => $request->input('milestone'),
+                'confirmed_by' => $request->input('confirmed_by'),
+            ], fn ($v) => $v !== null),
+            default => [],
+        };
     }
 
     protected function merchantId(Request $request): int
@@ -189,9 +236,13 @@ class SettlementRuleController extends Controller
         return [
             'id' => $rule->id,
             'name' => $rule->name,
+            'flow' => $rule->flow,
             'condition_type' => $rule->condition_type,
             'days' => $rule->condition_type === SettlementRule::CONDITION_ELAPSED_DAYS ? $rule->days() : null,
+            'milestone' => $rule->milestone(),
+            'confirmed_by' => $rule->confirmedBy(),
             'release_percentage' => (int) $rule->release_percentage,
+            'destinations' => $rule->destinations,
             'priority' => (int) $rule->priority,
             'is_active' => (bool) $rule->is_active,
         ];
