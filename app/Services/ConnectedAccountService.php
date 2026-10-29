@@ -35,13 +35,13 @@ class ConnectedAccountService
     }
 
     /**
-     * Create the account holder's Stripe account.
+     * Create the account holder's Stripe account and arm it straight away.
      *
-     * A holding account is armed straight away: payouts are set to manual in
-     * the same breath as creation, because an account that takes a payment
-     * before being armed pays it straight out on Stripe's rolling schedule
-     * and there is no way to pull it back. A recipient account needs no
-     * arming, since money only reaches it once a release has been decided.
+     * Payouts are set to manual in the same breath as creation on purpose:
+     * an account that receives money before being armed pays it straight out
+     * on Stripe's rolling schedule and there is no way to pull it back. That
+     * holds for a participant too, since its share of a split payment sits
+     * in its own balance until released.
      */
     public function onboard(
         Merchant $merchant,
@@ -56,9 +56,7 @@ class ConnectedAccountService
             'merchant_id' => (string) $merchant->id,
         ], $type);
 
-        if ($type === ConnectedAccount::TYPE_HOLDING) {
-            $gateway->setManualPayouts($created['account_id']);
-        }
+        $gateway->setManualPayouts($created['account_id']);
 
         $account = ConnectedAccount::create([
             'merchant_id' => $merchant->id,
@@ -125,10 +123,12 @@ class ConnectedAccountService
         // An account that drifts out of the holding configuration is a
         // standing risk, not a one-off: funds already sitting in it may no
         // longer be under our control.
-        if (!$account->isRecipient() && $account->details_submitted && !$account->canHoldFunds()) {
+        $locked = $account->isRecipient() ? $account->canHoldShares() : $account->canHoldFunds();
+
+        if ($account->details_submitted && !$locked) {
             Log::warning('Connected account cannot hold funds', [
                 'account_id' => $account->account_id,
-                'blockers' => $account->holdBlockers(),
+                'blockers' => $account->isRecipient() ? $account->shareBlockers() : $account->holdBlockers(),
             ]);
         }
 

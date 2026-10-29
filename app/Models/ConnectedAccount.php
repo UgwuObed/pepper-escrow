@@ -9,7 +9,7 @@ class ConnectedAccount extends Model
     /** Payments are charged onto this account and held in its own balance. */
     public const TYPE_HOLDING = 'holding';
 
-    /** Receives shares of pooled holds by transfer from the platform. */
+    /** A participant: holds its own share of split payments until released. */
     public const TYPE_RECIPIENT = 'recipient';
 
     public const TYPES = [self::TYPE_HOLDING, self::TYPE_RECIPIENT];
@@ -104,22 +104,28 @@ class ConnectedAccount extends Model
     }
 
     /**
-     * Whether a released share can be transferred here. Money only reaches a
-     * recipient once a condition has been met, so unlike a holding account
-     * there is nothing to lock down: Stripe just has to accept the transfer.
+     * Whether a share of a split payment can be placed here and held.
+     *
+     * A share sits in the party's own balance from the moment it is paid
+     * until it is released, so the account needs the same lock as a holding
+     * account: manual payouts and no dashboard from which to pay itself out.
      */
-    public function canReceiveTransfers(): bool
+    public function canHoldShares(): bool
     {
-        return $this->isRecipient() && $this->payouts_enabled && $this->details_submitted;
+        return $this->isRecipient()
+            && $this->details_submitted
+            && $this->payouts_enabled
+            && $this->payout_schedule === 'manual'
+            && $this->dashboard_type === 'none';
     }
 
     /**
      * @return array<int, string>
      */
-    public function transferBlockers(): array
+    public function shareBlockers(): array
     {
         if (!$this->isRecipient()) {
-            return ['This is a holding account. Pooled releases are paid to recipient accounts.'];
+            return ['This is a holding account. Split payments are shared between participant accounts.'];
         }
 
         $blockers = [];
@@ -130,6 +136,14 @@ class ConnectedAccount extends Model
 
         if (!$this->payouts_enabled) {
             $blockers[] = 'Payouts are not enabled on this account yet.';
+        }
+
+        if ($this->payout_schedule !== 'manual') {
+            $blockers[] = 'Payouts are not set to manual, so a share would be paid out before it is released.';
+        }
+
+        if ($this->dashboard_type !== 'none') {
+            $blockers[] = 'The account holder has a dashboard and could pay themselves out.';
         }
 
         return $blockers;

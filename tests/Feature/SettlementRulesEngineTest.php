@@ -320,7 +320,7 @@ class FakeConnectGateway extends StripeConnectGateway
         parent::__construct(['secret_key' => 'sk_test_fake']);
     }
 
-    public function createPayout(string $accountId, float $amount, string $currency, array $metadata = []): array
+    public function createPayout(string $accountId, float $amount, string $currency, array $metadata = [], ?string $idempotencyKey = null): array
     {
         $this->payouts[] = compact('accountId', 'amount', 'currency', 'metadata');
 

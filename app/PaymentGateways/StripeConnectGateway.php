@@ -47,14 +47,16 @@ use Stripe\Transfer;
  * restriction and is the only configuration that keeps losses off the
  * platform while denying the seller a way to release their own funds.
  *
- * Split releases work differently. Stripe only pays a balance out to the
- * account that owns it, so money sitting in one seller's balance can never be
- * shared out. A pooled hold is charged on the platform instead (separate
- * charges and transfers) and a release transfers each share to a recipient
- * account. Stripe makes the platform liable for refunds and chargebacks on
- * every indirect charge, whatever the recipient's own settings, so recipients
- * are created as platform-liable accounts and the pooled model carries that
- * exposure by design.
+ * Split payments work differently, because Stripe only pays a balance out to
+ * the account that owns it: money in one party's balance can never be shared
+ * with another. A split payment is therefore divided the moment it is paid.
+ * The charge passes through the platform (separate charges and transfers)
+ * and each share is transferred straight on into its participant's own
+ * account, which is held on manual payouts exactly like a holding account.
+ * Nothing is kept in Peppa's balance; a release pays each participant out
+ * from their own. Stripe makes the platform liable for refunds and
+ * chargebacks on every indirect charge, so participants are platform-liable
+ * accounts.
  *
  * @see https://docs.stripe.com/connect/migrate-to-controller-properties
  * @see https://docs.stripe.com/connect/manual-payouts
@@ -81,7 +83,7 @@ class StripeConnectGateway implements PaymentGatewayInterface
     protected string $webhookSecret;
     protected string $connectWebhookSecret;
 
-    /** Where Peppa's own Stripe account is registered; sets the pooled holding limit. */
+    /** Where Peppa's own Stripe account is registered; the fallback holding limit. */
     protected string $platformCountry;
 
     public function __construct(array $config)
@@ -139,15 +141,16 @@ class StripeConnectGateway implements PaymentGatewayInterface
     ): array {
         $params = $type === 'recipient'
             ? [
-                // Money only reaches a recipient after its condition is met,
-                // so there is nothing for a dashboard to undermine. Indirect
-                // charges leave the platform liable regardless, which Stripe
-                // requires these settings to say.
+                // A participant's share sits in its own balance until
+                // released, so like a holding account it gets no dashboard to
+                // pay itself out from. Indirect charges leave the platform
+                // liable regardless, which Stripe requires these settings to
+                // say.
                 'controller' => [
                     'losses' => ['payments' => 'application'],
                     'fees' => ['payer' => 'application'],
                     'requirement_collection' => 'stripe',
-                    'stripe_dashboard' => ['type' => 'express'],
+                    'stripe_dashboard' => ['type' => 'none'],
                 ],
                 'capabilities' => [
                     'transfers' => ['requested' => true],
@@ -294,11 +297,11 @@ class StripeConnectGateway implements PaymentGatewayInterface
         ];
     }
 
-    // ─── Taking payment into the platform (pooled holds) ──────────────
+    // ─── Taking a split payment ───────────────────────────────────────
 
     /**
-     * Collect a payment into the platform balance for a pooled hold. The
-     * transfer group ties every later share of the release back to it.
+     * Collect a split payment. It is shared out to the participants as soon
+     * as it succeeds; the transfer group ties every share back to it.
      */
     public function createPlatformCheckout(
         float $amount,
@@ -361,7 +364,7 @@ class StripeConnectGateway implements PaymentGatewayInterface
     }
 
     /**
-     * Move one share of a pooled release to a recipient account.
+     * Move one share of a split payment into its participant's account.
      *
      * The idempotency key makes a retry after a timeout safe: Stripe returns
      * the original transfer instead of sending the money twice.
@@ -396,7 +399,20 @@ class StripeConnectGateway implements PaymentGatewayInterface
         ];
     }
 
-    /** Refund part or all of a platform payment. */
+    /**
+     * Pull part of a share back from a participant's account, ahead of
+     * refunding the payer.
+     */
+    public function reverseTransfer(string $transferId, float $amount, string $currency, string $idempotencyKey): array
+    {
+        $reversal = Transfer::createReversal($transferId, [
+            'amount' => $this->toMinorUnits($amount, $currency),
+        ], ['idempotency_key' => $idempotencyKey]);
+
+        return ['reversal_id' => $reversal->id, 'amount' => $amount];
+    }
+
+    /** Refund part or all of a split payment's charge. */
     public function refundPlatformPayment(string $paymentIntentId, float $amount, string $currency, string $reason = ''): array
     {
         $params = [
@@ -447,12 +463,19 @@ class StripeConnectGateway implements PaymentGatewayInterface
         float $amount,
         string $currency,
         array $metadata = [],
+        ?string $idempotencyKey = null,
     ): array {
+        $options = ['stripe_account' => $accountId];
+
+        if ($idempotencyKey) {
+            $options['idempotency_key'] = $idempotencyKey;
+        }
+
         $payout = Payout::create([
             'amount' => $this->toMinorUnits($amount, $currency),
             'currency' => strtolower($currency),
             'metadata' => $metadata,
-        ], ['stripe_account' => $accountId]);
+        ], $options);
 
         return [
             'payout_id' => $payout->id,
