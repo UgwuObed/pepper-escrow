@@ -6,11 +6,21 @@ use Illuminate\Database\Eloquent\Model;
 
 class ConnectedAccount extends Model
 {
+    /** Payments are charged onto this account and held in its own balance. */
+    public const TYPE_HOLDING = 'holding';
+
+    /** Receives shares of pooled holds by transfer from the platform. */
+    public const TYPE_RECIPIENT = 'recipient';
+
+    public const TYPES = [self::TYPE_HOLDING, self::TYPE_RECIPIENT];
+
     protected $fillable = [
         'merchant_id',
         'provider',
+        'account_type',
         'account_id',
         'seller_email',
+        'label',
         'country',
         'charges_enabled',
         'payouts_enabled',
@@ -46,7 +56,8 @@ class ConnectedAccount extends Model
      */
     public function canHoldFunds(): bool
     {
-        return $this->charges_enabled
+        return $this->account_type !== self::TYPE_RECIPIENT
+            && $this->charges_enabled
             && $this->payout_schedule === 'manual'
             && $this->losses_payer === 'stripe'
             && $this->dashboard_type === 'none';
@@ -60,6 +71,10 @@ class ConnectedAccount extends Model
     public function holdBlockers(): array
     {
         $blockers = [];
+
+        if ($this->account_type === self::TYPE_RECIPIENT) {
+            return ['This is a recipient account. It receives released shares and cannot hold payments itself.'];
+        }
 
         if (!$this->charges_enabled) {
             $blockers[] = 'Stripe has not enabled charges on this account yet.';
@@ -78,6 +93,43 @@ class ConnectedAccount extends Model
                 'The seller has a %s Stripe dashboard and could pay themselves out.',
                 $this->dashboard_type ?? 'unknown'
             );
+        }
+
+        return $blockers;
+    }
+
+    public function isRecipient(): bool
+    {
+        return $this->account_type === self::TYPE_RECIPIENT;
+    }
+
+    /**
+     * Whether a released share can be transferred here. Money only reaches a
+     * recipient once a condition has been met, so unlike a holding account
+     * there is nothing to lock down: Stripe just has to accept the transfer.
+     */
+    public function canReceiveTransfers(): bool
+    {
+        return $this->isRecipient() && $this->payouts_enabled && $this->details_submitted;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function transferBlockers(): array
+    {
+        if (!$this->isRecipient()) {
+            return ['This is a holding account. Pooled releases are paid to recipient accounts.'];
+        }
+
+        $blockers = [];
+
+        if (!$this->details_submitted) {
+            $blockers[] = 'The account holder has not finished onboarding.';
+        }
+
+        if (!$this->payouts_enabled) {
+            $blockers[] = 'Payouts are not enabled on this account yet.';
         }
 
         return $blockers;

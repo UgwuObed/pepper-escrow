@@ -134,6 +134,8 @@ Route::group([
     Route::get('{reference}', [\App\Http\Controllers\Client\SettlementHoldController::class, 'show']);
     Route::post('{reference}/confirm', [\App\Http\Controllers\Client\SettlementHoldController::class, 'confirm']);
     Route::post('{reference}/approve', [\App\Http\Controllers\Client\SettlementHoldController::class, 'approve']);
+    Route::post('{reference}/milestones', [\App\Http\Controllers\Client\SettlementHoldController::class, 'milestone']);
+    Route::post('{reference}/transfers/retry', [\App\Http\Controllers\Client\SettlementHoldController::class, 'retryTransfers']);
     Route::post('{reference}/dispute', [\App\Http\Controllers\Client\SettlementHoldController::class, 'dispute']);
     Route::post('{reference}/dispute/resolve', [\App\Http\Controllers\Client\SettlementHoldController::class, 'resolveDispute']);
     Route::post('{reference}/refund', [\App\Http\Controllers\Client\SettlementHoldController::class, 'refund']);

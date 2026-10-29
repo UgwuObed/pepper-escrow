@@ -228,7 +228,7 @@ class OnboardFakeGateway extends StripeConnectGateway
         parent::__construct(['secret_key' => 'sk_test_fake']);
     }
 
-    public function createConnectedAccount(string $email, string $country, array $metadata = []): array
+    public function createConnectedAccount(string $email, string $country, array $metadata = [], string $type = 'holding'): array
     {
         if ($this->throw) {
             throw new \RuntimeException('Stripe is unavailable');

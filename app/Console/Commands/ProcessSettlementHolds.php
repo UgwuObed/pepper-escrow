@@ -80,6 +80,10 @@ class ProcessSettlementHolds extends Command
                 $hold->isFrozen() && $hold->expiresWithin(SettlementRulesEngine::EXPIRY_SAFETY_DAYS)
                     => 'WARN: disputed and at the limit',
                 $hold->isFrozen() => 'skip (disputed)',
+                $hold->isPooled() && $hold->expiresWithin(SettlementRulesEngine::EXPIRY_SAFETY_DAYS)
+                    => ($hold->on_expiry ?? 'refund') === 'refund'
+                        ? 'REFUND (holding limit)'
+                        : 'RELEASE TO ' . $hold->on_expiry . ' (holding limit)',
                 $hold->expiresWithin(SettlementRulesEngine::EXPIRY_SAFETY_DAYS)
                     => 'FORCE RELEASE (Stripe limit)',
                 default => 'evaluate elapsed-day rules',

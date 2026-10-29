@@ -9,9 +9,11 @@ use Stripe\Account;
 use Stripe\AccountLink;
 use Stripe\Balance;
 use Stripe\Checkout\Session;
+use Stripe\PaymentIntent;
 use Stripe\Payout;
 use Stripe\Refund;
 use Stripe\Stripe;
+use Stripe\Transfer;
 
 /**
  * Stripe Connect with conditional settlement.
@@ -45,8 +47,18 @@ use Stripe\Stripe;
  * restriction and is the only configuration that keeps losses off the
  * platform while denying the seller a way to release their own funds.
  *
+ * Split releases work differently. Stripe only pays a balance out to the
+ * account that owns it, so money sitting in one seller's balance can never be
+ * shared out. A pooled hold is charged on the platform instead (separate
+ * charges and transfers) and a release transfers each share to a recipient
+ * account. Stripe makes the platform liable for refunds and chargebacks on
+ * every indirect charge, whatever the recipient's own settings, so recipients
+ * are created as platform-liable accounts and the pooled model carries that
+ * exposure by design.
+ *
  * @see https://docs.stripe.com/connect/migrate-to-controller-properties
  * @see https://docs.stripe.com/connect/manual-payouts
+ * @see https://docs.stripe.com/connect/separate-charges-and-transfers
  */
 class StripeConnectGateway implements PaymentGatewayInterface
 {
@@ -69,8 +81,12 @@ class StripeConnectGateway implements PaymentGatewayInterface
     protected string $webhookSecret;
     protected string $connectWebhookSecret;
 
+    /** Where Peppa's own Stripe account is registered; sets the pooled holding limit. */
+    protected string $platformCountry;
+
     public function __construct(array $config)
     {
+        $this->platformCountry = strtoupper($config['platform_country'] ?? 'GB');
         $this->secretKey = $config['secret_key'] ?? '';
         $this->publicKey = $config['public_key'] ?? '';
         $this->webhookSecret = $config['webhook_secret'] ?? '';
@@ -96,6 +112,11 @@ class StripeConnectGateway implements PaymentGatewayInterface
         return self::HOLDING_PERIOD_DAYS[strtoupper($country)] ?? self::DEFAULT_HOLDING_PERIOD_DAYS;
     }
 
+    public function platformCountry(): string
+    {
+        return $this->platformCountry;
+    }
+
     /**
      * The latest moment a payment may still be sitting in the seller's balance.
      * The rules engine uses this to force a release before Stripe's limit.
@@ -110,23 +131,46 @@ class StripeConnectGateway implements PaymentGatewayInterface
     /**
      * @return array{account_id: string, country: string, holding_period_days: int, charges_enabled: bool, payouts_enabled: bool}
      */
-    public function createConnectedAccount(string $email, string $country, array $metadata = []): array
-    {
-        $account = Account::create([
+    public function createConnectedAccount(
+        string $email,
+        string $country,
+        array $metadata = [],
+        string $type = 'holding',
+    ): array {
+        $params = $type === 'recipient'
+            ? [
+                // Money only reaches a recipient after its condition is met,
+                // so there is nothing for a dashboard to undermine. Indirect
+                // charges leave the platform liable regardless, which Stripe
+                // requires these settings to say.
+                'controller' => [
+                    'losses' => ['payments' => 'application'],
+                    'fees' => ['payer' => 'application'],
+                    'requirement_collection' => 'stripe',
+                    'stripe_dashboard' => ['type' => 'express'],
+                ],
+                'capabilities' => [
+                    'transfers' => ['requested' => true],
+                ],
+            ]
+            : [
+                'controller' => [
+                    'losses' => ['payments' => 'stripe'],
+                    'fees' => ['payer' => 'account'],
+                    'requirement_collection' => 'stripe',
+                    'stripe_dashboard' => ['type' => 'none'],
+                ],
+                'capabilities' => [
+                    'card_payments' => ['requested' => true],
+                    'transfers' => ['requested' => true],
+                ],
+            ];
+
+        $account = Account::create(array_merge($params, [
             'email' => $email,
             'country' => strtoupper($country),
-            'controller' => [
-                'losses' => ['payments' => 'stripe'],
-                'fees' => ['payer' => 'account'],
-                'requirement_collection' => 'stripe',
-                'stripe_dashboard' => ['type' => 'none'],
-            ],
-            'capabilities' => [
-                'card_payments' => ['requested' => true],
-                'transfers' => ['requested' => true],
-            ],
             'metadata' => $metadata,
-        ]);
+        ]));
 
         return [
             'account_id' => $account->id,
@@ -247,6 +291,126 @@ class StripeConnectGateway implements PaymentGatewayInterface
             'reference' => $reference,
             'session_id' => $session->id,
             'account_id' => $accountId,
+        ];
+    }
+
+    // ─── Taking payment into the platform (pooled holds) ──────────────
+
+    /**
+     * Collect a payment into the platform balance for a pooled hold. The
+     * transfer group ties every later share of the release back to it.
+     */
+    public function createPlatformCheckout(
+        float $amount,
+        string $currency,
+        string $reference,
+        string $transferGroup,
+        ?string $customerEmail,
+        string $successUrl,
+        string $cancelUrl,
+        array $metadata = [],
+    ): array {
+        $params = [
+            'mode' => 'payment',
+            'line_items' => [[
+                'price_data' => [
+                    'currency' => strtolower($currency),
+                    'product_data' => ['name' => 'Payment ' . $reference],
+                    'unit_amount' => $this->toMinorUnits($amount, $currency),
+                ],
+                'quantity' => 1,
+            ]],
+            'client_reference_id' => $reference,
+            'success_url' => $successUrl,
+            'cancel_url' => $cancelUrl,
+            'payment_intent_data' => [
+                'transfer_group' => $transferGroup,
+                'metadata' => $metadata,
+            ],
+            'metadata' => $metadata,
+        ];
+
+        if ($customerEmail) {
+            $params['customer_email'] = $customerEmail;
+        }
+
+        $session = Session::create($params);
+
+        return [
+            'session_id' => $session->id,
+            'payment_url' => $session->url,
+        ];
+    }
+
+    /**
+     * The charge behind a platform payment intent. Transfers name it as their
+     * source so each share is tied to the money that funded it.
+     *
+     * @return array{charge_id: ?string, amount: float, currency: string, status: string}
+     */
+    public function platformPayment(string $paymentIntentId): array
+    {
+        $intent = PaymentIntent::retrieve($paymentIntentId);
+
+        return [
+            'charge_id' => is_string($intent->latest_charge) ? $intent->latest_charge : ($intent->latest_charge->id ?? null),
+            'amount' => $this->fromMinorUnits((int) $intent->amount_received, (string) $intent->currency),
+            'currency' => strtoupper((string) $intent->currency),
+            'status' => (string) $intent->status,
+        ];
+    }
+
+    /**
+     * Move one share of a pooled release to a recipient account.
+     *
+     * The idempotency key makes a retry after a timeout safe: Stripe returns
+     * the original transfer instead of sending the money twice.
+     */
+    public function createTransfer(
+        string $destinationAccountId,
+        float $amount,
+        string $currency,
+        string $transferGroup,
+        ?string $sourceCharge,
+        string $idempotencyKey,
+        array $metadata = [],
+    ): array {
+        $params = [
+            'amount' => $this->toMinorUnits($amount, $currency),
+            'currency' => strtolower($currency),
+            'destination' => $destinationAccountId,
+            'transfer_group' => $transferGroup,
+            'metadata' => $metadata,
+        ];
+
+        if ($sourceCharge) {
+            $params['source_transaction'] = $sourceCharge;
+        }
+
+        $transfer = Transfer::create($params, ['idempotency_key' => $idempotencyKey]);
+
+        return [
+            'transfer_id' => $transfer->id,
+            'amount' => $amount,
+            'currency' => strtoupper($currency),
+        ];
+    }
+
+    /** Refund part or all of a platform payment. */
+    public function refundPlatformPayment(string $paymentIntentId, float $amount, string $currency, string $reason = ''): array
+    {
+        $params = [
+            'payment_intent' => $paymentIntentId,
+            'amount' => $this->toMinorUnits($amount, $currency),
+            'metadata' => ['reason' => $reason],
+        ];
+
+        $refund = Refund::create($params);
+
+        return [
+            'status' => $refund->status,
+            'reference' => $refund->id,
+            'message' => 'Refund ' . $refund->status,
         ];
     }
 
