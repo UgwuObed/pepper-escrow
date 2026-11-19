@@ -31,7 +31,10 @@ services:
       FLUTTERWAVE_PUBLIC_KEY: "${FLUTTERWAVE_PUBLIC_KEY:-}"
       FLUTTERWAVE_SECRET_KEY: "${FLUTTERWAVE_SECRET_KEY:-}"
       FLUTTERWAVE_ENCRYPTION_KEY: "${FLUTTERWAVE_ENCRYPTION_KEY:-}"
-      APP_SEED: "true"
+      # Off by default: the seeders create a sample admin login with a known
+      # password and test API keys, which must never be loaded into production.
+      # Set APP_SEED=true in the host environment for a throwaway instance.
+      APP_SEED: "${APP_SEED:-false}"
     depends_on:
       db:
         condition: service_healthy

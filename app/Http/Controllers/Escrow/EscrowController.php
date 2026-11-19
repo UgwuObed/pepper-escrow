@@ -296,7 +296,10 @@ class EscrowController extends Controller
                 'peppfees' => 'required',
                 'startdate' => 'required|string',
                 'enddate' => 'required|string',
-                'callback_url' => 'nullable|string',
+                // Required: the payment link is generated from it, and without a
+                // link the buyer has no way to pay. It used to be optional, which
+                // created a transaction and reported success with payment_url null.
+                'callback_url' => 'required|string',
                 'transfer_reference_id' => 'string|nullable',
             ];
 
@@ -381,26 +384,23 @@ class EscrowController extends Controller
                     'updatedby' => 'API ' . $request['appid'],
                 ]);
 
-                // Generate payment link if callback URL provided
                 $paymentUrl = null;
                 $paymentError = null;
-                if ($request->filled('callback_url')) {
-                    try {
-                        $token = $request->get('api_token');
-                        $result = $this->paymentService->createPaymentForTransaction(
-                            transaction: $tranx,
-                            customerEmail: $request['customer_email'],
-                            customerName: $request['customer_name'] ?? $request['customer_email'],
-                            callbackUrl: $request['callback_url'],
-                            token: $token,
-                        );
-                        $paymentUrl = $result['payment_url'];
-                        $tranx = $tranx->fresh();
-                    } catch (Exception $e) {
-                        // The transaction record stands, but the buyer has no way to
-                        // pay for it — surface that instead of reporting success.
-                        $paymentError = $e->getMessage();
-                    }
+                try {
+                    $token = $request->get('api_token');
+                    $result = $this->paymentService->createPaymentForTransaction(
+                        transaction: $tranx,
+                        customerEmail: $request['customer_email'],
+                        customerName: $request['customer_name'] ?? $request['customer_email'],
+                        callbackUrl: $request['callback_url'],
+                        token: $token,
+                    );
+                    $paymentUrl = $result['payment_url'];
+                    $tranx = $tranx->fresh();
+                } catch (Exception $e) {
+                    // The transaction record stands, but the buyer has no way to
+                    // pay for it — surface that instead of reporting success.
+                    $paymentError = $e->getMessage();
                 }
 
                 $response = $this->getResponse($tranx);

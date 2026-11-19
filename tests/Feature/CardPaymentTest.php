@@ -113,6 +113,23 @@ class CardPaymentTest extends TestCase
         ]);
     }
 
+    public function test_create_card_without_callback_url_is_rejected_and_creates_nothing(): void
+    {
+        $reference = 'REF-CARD-' . bin2hex(random_bytes(6));
+        $payload = $this->cardPayload($reference);
+        unset($payload['callback_url']);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/escrow/Transaction/create_card', $payload);
+
+        // Regression: this used to report success with payment_url null, leaving
+        // a transaction the buyer had no way to pay for.
+        $response->assertJsonPath('ResponseCode', 400);
+        $response->assertJsonPath('ResponseStatus', 'Unsuccessful');
+        $this->assertArrayHasKey('callback_url', $response->json('ResponseMessage'));
+        $this->assertSame(0, Transaction::where('transcode', $reference)->count());
+    }
+
     public function test_get_payment_link_does_not_duplicate_the_transaction(): void
     {
         $reference = 'REF-CARD-' . bin2hex(random_bytes(6));
