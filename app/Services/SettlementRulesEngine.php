@@ -8,6 +8,7 @@ use App\Models\SettlementHold;
 use App\Models\SettlementRule;
 use App\Models\SettlementShare;
 use App\Models\SettlementTransfer;
+use App\PaymentGateways\ModulrGateway;
 use App\PaymentGateways\StripeConnectGateway;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -61,6 +62,17 @@ class SettlementRulesEngine
         return $gateway;
     }
 
+    protected function modulr(): ModulrGateway
+    {
+        $gateway = $this->paymentService->getGateway('modulr');
+
+        if (!$gateway instanceof ModulrGateway) {
+            throw new \RuntimeException('Modulr is not configured.');
+        }
+
+        return $gateway;
+    }
+
     // ─── Opening a hold ───────────────────────────────────────────────
 
     /**
@@ -108,6 +120,10 @@ class SettlementRulesEngine
      * Used when the hold is opened, so a missing or unready participant is
      * refused before the payer is asked for anything.
      *
+     * A bank-transfer hold pays its participants to bank accounts, and a
+     * Stripe split hold pays them from Stripe accounts, so each only accepts
+     * its own kind of participant.
+     *
      * @param array<int, array<string, mixed>> $split
      * @param array<string, string> $parties role => connected account id
      * @return array<int, array{to: string, amount: float, account: ?ConnectedAccount}>
@@ -115,8 +131,14 @@ class SettlementRulesEngine
      * @throws \InvalidArgumentException when the split itself is unsound
      * @throws \RuntimeException listing every participant that cannot take a share
      */
-    public function planShares(int $merchantId, float $amount, string $currency, array $split, array $parties): array
-    {
+    public function planShares(
+        int $merchantId,
+        float $amount,
+        string $currency,
+        array $split,
+        array $parties,
+        string $funding = SettlementHold::FUNDING_SPLIT,
+    ): array {
         if ($error = SplitCalculator::validate($split)) {
             throw new \InvalidArgumentException($error);
         }
@@ -131,7 +153,8 @@ class SettlementRulesEngine
                 continue;
             }
 
-            $accountId = str_starts_with($share['to'], 'acct_') ? $share['to'] : ($parties[$share['to']] ?? null);
+            $direct = str_starts_with($share['to'], 'acct_') || str_starts_with($share['to'], 'bnk_');
+            $accountId = $direct ? $share['to'] : ($parties[$share['to']] ?? null);
 
             if (!$accountId) {
                 $problems[] = sprintf('No account is assigned to "%s".', $share['to']);
@@ -142,6 +165,20 @@ class SettlementRulesEngine
 
             if (!$account) {
                 $problems[] = sprintf('%s (%s) is not one of your accounts.', $accountId, $share['to']);
+                continue;
+            }
+
+            $bankHold = $funding === SettlementHold::FUNDING_BANK_TRANSFER;
+
+            if ($bankHold && !$account->isBankPayee()) {
+                $problems[] = sprintf('%s (%s) is a Stripe account. A bank-transfer hold pays participants to bank accounts, so add them with bank details.',
+                    $share['to'], $accountId);
+                continue;
+            }
+
+            if (!$bankHold && $account->isBankPayee()) {
+                $problems[] = sprintf('%s (%s) is paid by bank transfer and cannot take a share of a card payment.',
+                    $share['to'], $accountId);
                 continue;
             }
 
@@ -234,6 +271,208 @@ class SettlementRulesEngine
         $this->record($hold, 'payment_requested', 'system', ['amount' => $amount]);
 
         return $hold->fresh();
+    }
+
+    /**
+     * Open a bank-transfer hold: an account is opened for this payment alone,
+     * and the payer is given its bank details to send the money to.
+     *
+     * The account is opened before anything is written, so a Modulr failure
+     * leaves no half-opened hold behind. The worst case the other way round
+     * is an unused, empty account.
+     *
+     * @param array<int, array<string, mixed>> $split
+     * @param array<string, string> $parties role => bnk_ participant id
+     */
+    public function openBankTransfer(
+        int $merchantId,
+        string $reference,
+        float $amount,
+        string $currency,
+        array $split,
+        array $parties,
+        ?string $flow,
+        ?string $onExpiry,
+    ): SettlementHold {
+        $currency = strtoupper($currency);
+        $planned = $this->planShares($merchantId, $amount, $currency, $split, $parties, SettlementHold::FUNDING_BANK_TRANSFER);
+
+        $account = $this->modulr()->createAccount($currency, $reference);
+
+        $hold = DB::transaction(function () use ($merchantId, $reference, $amount, $currency, $split, $parties, $flow, $onExpiry, $planned, $account) {
+            $hold = SettlementHold::create([
+                'merchant_id' => $merchantId,
+                'funding' => SettlementHold::FUNDING_BANK_TRANSFER,
+                'reference' => $reference,
+                'flow' => $flow,
+                'parties' => $parties,
+                'split' => $split,
+                'on_expiry' => $onExpiry ?: 'refund',
+                'amount' => $amount,
+                'currency' => $currency,
+                'status' => SettlementHold::STATUS_AWAITING_PAYMENT,
+                'bank_account_id' => $account['account_id'],
+                'bank_details' => array_filter([
+                    'sort_code' => $account['sort_code'],
+                    'account_number' => $account['account_number'],
+                    'iban' => $account['iban'],
+                    'bic' => $account['bic'],
+                ]),
+                'payins' => [],
+            ]);
+
+            foreach ($planned as $share) {
+                SettlementShare::create([
+                    'settlement_hold_id' => $hold->id,
+                    'destination' => $share['to'],
+                    'connected_account_id' => $share['account']?->id,
+                    'account_id' => $share['account']?->account_id,
+                    'amount' => $share['amount'],
+                    'currency' => $currency,
+                ]);
+            }
+
+            $this->record($hold, 'payment_requested', 'system', ['amount' => $amount]);
+
+            return $hold;
+        });
+
+        return $hold->fresh();
+    }
+
+    /**
+     * Money has arrived in a bank-transfer hold's account.
+     *
+     * Every transfer is recorded by Modulr's payment id, so a resent
+     * notification is ignored. Transfers add up: a payer who sends too little
+     * can send the rest, and the hold is held once the total covers it.
+     *
+     * Before the hold is marked paid, the account's balance is checked with
+     * Modulr directly. The notification alone is not trusted with that,
+     * since its signature does not cover the body. If the balance does not
+     * confirm it, this throws without changing anything, and Modulr's retry
+     * of the notification tries again.
+     *
+     * @param array{payment_id: string, amount: float, currency: string, payer_name: ?string, payer: ?array, reference: ?string, type: ?string} $payin
+     */
+    public function bankPaymentReceived(SettlementHold $hold, array $payin): SettlementHold
+    {
+        if (!$hold->isBankTransfer()) {
+            throw new \LogicException("{$hold->reference} is not a bank-transfer hold.");
+        }
+
+        if (isset(($hold->payins ?? [])[$payin['payment_id']])) {
+            return $hold;
+        }
+
+        $entry = [
+            'amount' => round((float) $payin['amount'], 2),
+            'currency' => strtoupper($payin['currency']),
+            'payer' => $payin['payer'] ?? null,
+            'payer_name' => $payin['payer_name'] ?? null,
+            'reference' => $payin['reference'] ?? null,
+            'type' => $payin['type'] ?? null,
+            'at' => now()->toIso8601String(),
+        ];
+
+        $awaiting = $hold->status === SettlementHold::STATUS_AWAITING_PAYMENT;
+        $currencyOk = $entry['currency'] === $hold->currency;
+        $total = round($hold->amountReceived() + ($currencyOk ? $entry['amount'] : 0), 2);
+        $funds = $awaiting && $currencyOk && $total + 0.005 >= (float) $hold->amount;
+
+        if ($funds) {
+            $balance = $this->modulr()->getAccount((string) $hold->bank_account_id)['balance'];
+
+            if ($balance === null || $balance + 0.005 < (float) $hold->amount) {
+                Log::warning('Modulr pay-in not confirmed by the account balance', [
+                    'hold' => $hold->reference,
+                    'payment_id' => $payin['payment_id'],
+                    'balance' => $balance,
+                ]);
+
+                throw new \RuntimeException(sprintf(
+                    'The pay-in for %s is not yet reflected in the account balance (%s of %s %s).',
+                    $hold->reference, $balance ?? 'unknown', $hold->amount, $hold->currency,
+                ));
+            }
+        }
+
+        return DB::transaction(function () use ($hold, $payin, $entry, $currencyOk, $funds) {
+            // Recomputed under the lock: two notifications for the same hold
+            // arriving together must not both act on the state read above.
+            $hold = SettlementHold::lockForUpdate()->find($hold->id);
+            $payins = $hold->payins ?? [];
+
+            if (isset($payins[$payin['payment_id']])) {
+                return $hold;
+            }
+
+            $awaiting = $hold->status === SettlementHold::STATUS_AWAITING_PAYMENT;
+            $total = round($hold->amountReceived() + ($currencyOk ? $entry['amount'] : 0), 2);
+            $covers = $awaiting && $currencyOk && $total + 0.005 >= (float) $hold->amount;
+
+            // Another pay-in landed in between and this one now completes the
+            // hold, but the balance was not checked for it. Let Modulr resend.
+            if ($covers && !$funds) {
+                throw new \RuntimeException("A concurrent pay-in changed {$hold->reference}; retry to confirm the balance.");
+            }
+
+            $funds = $covers;
+
+            $payins[$payin['payment_id']] = $entry;
+            $hold->update(['payins' => $payins]);
+
+            $received = sprintf('%s %s received from %s', number_format($entry['amount'], 2, '.', ''),
+                $entry['currency'], $entry['payer_name'] ?: 'an unknown payer');
+
+            if (!$currencyOk) {
+                $this->record($hold, 'payment_rejected', 'system', [
+                    'amount' => $entry['amount'],
+                    'note' => "{$received}, but this hold is in {$hold->currency}. It needs to be returned by hand.",
+                ]);
+
+                return $hold;
+            }
+
+            if (!$awaiting) {
+                $this->record($hold, 'payment_rejected', 'system', [
+                    'amount' => $entry['amount'],
+                    'note' => "{$received} after the hold was already paid. It needs to be returned by hand.",
+                ]);
+
+                return $hold;
+            }
+
+            if (!$funds) {
+                $this->record($hold, 'payment_rejected', 'system', [
+                    'amount' => $entry['amount'],
+                    'note' => sprintf('%s. %s of %s %s received so far; waiting for the rest.',
+                        $received, number_format($total, 2, '.', ''), $hold->amount, $hold->currency),
+                ]);
+
+                return $hold;
+            }
+
+            $expiresAt = now()->addDays((int) config('gateways.modulr.max_hold_days', 90));
+
+            $hold->update([
+                'status' => SettlementHold::STATUS_HELD,
+                'held_at' => now(),
+                'hold_expires_at' => $expiresAt,
+            ]);
+
+            $over = round($total - (float) $hold->amount, 2);
+
+            $this->record($hold, 'held', 'system', [
+                'amount' => (float) $hold->amount,
+                'note' => sprintf('Payment received by bank transfer and held in the hold\'s own account. Release by %s at the latest.%s',
+                    $expiresAt->toDateString(),
+                    $over > 0 ? sprintf(' %s %s more than the hold amount was received and needs to be returned by hand.',
+                        number_format($over, 2, '.', ''), $hold->currency) : ''),
+            ]);
+
+            return $hold;
+        })->fresh();
     }
 
     /**
@@ -648,9 +887,12 @@ class SettlementRulesEngine
         foreach ($shares as $share) {
             $account = $share->connectedAccount;
 
-            if (!$share->isPlatform() && (!$account || !$account->payouts_enabled)) {
-                $problems[] = sprintf('%s (%s) cannot be paid out: payouts are not enabled on the account.',
-                    $share->destination, $share->account_id);
+            if (!$share->isPlatform() && (!$account || !$account->canBePaidOut())) {
+                $problems[] = $account?->isBankPayee()
+                    ? sprintf('%s (%s) cannot be paid out: their bank details are incomplete.',
+                        $share->destination, $share->account_id)
+                    : sprintf('%s (%s) cannot be paid out: payouts are not enabled on the account.',
+                        $share->destination, $share->account_id);
             }
         }
 
@@ -810,6 +1052,10 @@ class SettlementRulesEngine
      */
     protected function payOut(SettlementTransfer $line): string
     {
+        if ($line->hold->isBankTransfer()) {
+            return $this->payOutByBank($line);
+        }
+
         $share = $line->share()->with('movements')->first();
 
         if (!$share || !$share->allocation()) {
@@ -823,6 +1069,42 @@ class SettlementRulesEngine
             ['reference' => $line->hold->reference, 'share' => $line->destination],
             $line->idempotency_key,
         )['payout_id'];
+    }
+
+    /**
+     * A bank-transfer share is paid straight from the hold's own account to
+     * the participant's bank details. The details are read at release, so a
+     * participant who corrected them before then is paid to the new ones.
+     *
+     * Modulr accepts the payment asynchronously: a returned id means it was
+     * accepted, not that it has landed.
+     */
+    protected function payOutByBank(SettlementTransfer $line): string
+    {
+        $hold = $line->hold;
+        $account = $line->connectedAccount;
+
+        if (!$account || !$account->canBePaidOut()) {
+            throw new \RuntimeException('The participant\'s bank details are incomplete.');
+        }
+
+        return $this->modulr()->payOut(
+            (string) $hold->bank_account_id,
+            $account->payee(),
+            (float) $line->amount,
+            $line->currency,
+            $hold->reference,
+            self::modulrReference($line->idempotency_key),
+        )['payment_id'];
+    }
+
+    /**
+     * Modulr's external reference is capped at 50 characters, shorter than
+     * our idempotency keys. A hash keeps it unique and stable across retries.
+     */
+    public static function modulrReference(string $key): string
+    {
+        return 'pp-' . substr(hash('sha256', $key), 0, 40);
     }
 
     /**
@@ -872,6 +1154,10 @@ class SettlementRulesEngine
 
         if ($amount <= 0) {
             return $hold;
+        }
+
+        if ($hold->isBankTransfer()) {
+            return $this->refundBankTransfer($hold, $amount, $reason);
         }
 
         if ($hold->isSplit()) {
@@ -999,6 +1285,83 @@ class SettlementRulesEngine
                 implode('; ', $failures),
             ));
         }
+
+        return $hold->fresh();
+    }
+
+    /**
+     * Refund a bank-transfer hold by paying the payer back from the hold's
+     * account, to the bank details their transfer came from.
+     *
+     * The refund is taken from every share still held, in proportion to what
+     * each has left, as with a split hold. Nothing is booked until Modulr
+     * accepts the payment, so a failure leaves the hold as it was and the
+     * refund can simply be asked for again.
+     */
+    protected function refundBankTransfer(SettlementHold $hold, float $amount, string $reason): SettlementHold
+    {
+        $payer = $hold->payer();
+
+        if (!$payer) {
+            throw new \RuntimeException(
+                "The payer's bank details for {$hold->reference} are not known, so the refund has to be made by hand."
+            );
+        }
+
+        $shares = $hold->shares()->get()->filter(fn ($s) => $s->remaining() > 0)->values();
+        $portions = $this->proportion($amount, $hold->currency, $shares->map->remaining()->all());
+        $refundId = (string) Str::uuid();
+
+        $line = SettlementTransfer::create([
+            'settlement_hold_id' => $hold->id,
+            'kind' => SettlementTransfer::KIND_REFUND,
+            'release_id' => $refundId,
+            'destination' => 'payer',
+            'amount' => $amount,
+            'currency' => $hold->currency,
+            'status' => SettlementTransfer::STATUS_PENDING,
+            'idempotency_key' => "hold-{$hold->id}-refund-{$refundId}",
+        ]);
+
+        try {
+            $payment = $this->modulr()->payOut(
+                (string) $hold->bank_account_id,
+                $payer,
+                $amount,
+                $hold->currency,
+                'Refund ' . $hold->reference,
+                self::modulrReference($line->idempotency_key),
+            );
+        } catch (\Throwable $e) {
+            $line->update(['status' => SettlementTransfer::STATUS_FAILED, 'error' => $e->getMessage()]);
+
+            $this->record($hold, 'refund_incomplete', 'system', [
+                'amount' => $amount,
+                'note' => 'Nothing was refunded: ' . $e->getMessage(),
+            ]);
+
+            throw new \RuntimeException("Nothing was refunded for {$hold->reference}: " . $e->getMessage(), 0, $e);
+        }
+
+        DB::transaction(function () use ($hold, $amount, $reason, $line, $payment, $shares, $portions) {
+            $line->update(['status' => SettlementTransfer::STATUS_PAID, 'provider_id' => $payment['payment_id']]);
+
+            foreach ($shares as $i => $share) {
+                if ($portions[$i] > 0) {
+                    $share->update(['amount_refunded' => round((float) $share->amount_refunded + $portions[$i], 2)]);
+                }
+            }
+
+            $refunded = round((float) $hold->amount_refunded + $amount, 2);
+            $allOut = $refunded + (float) $hold->amount_released >= (float) $hold->amount;
+
+            $hold->update([
+                'amount_refunded' => $refunded,
+                'status' => $allOut ? SettlementHold::STATUS_REFUNDED : $hold->status,
+            ]);
+
+            $this->record($hold, 'refunded', 'system', ['amount' => $amount, 'note' => $reason]);
+        });
 
         return $hold->fresh();
     }

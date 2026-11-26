@@ -20,6 +20,9 @@ class SettlementTransfer extends Model
     /** Refund: the share is pulled back from the party's account. */
     public const KIND_REVERSAL = 'reversal';
 
+    /** Refund of a bank-transfer hold: paid back to the payer's bank account. */
+    public const KIND_REFUND = 'refund';
+
     public const STATUS_PENDING = 'pending';
     public const STATUS_PAID = 'paid';
     public const STATUS_FAILED = 'failed';

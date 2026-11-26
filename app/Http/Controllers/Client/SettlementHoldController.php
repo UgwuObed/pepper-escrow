@@ -52,6 +52,10 @@ class SettlementHoldController extends Controller
             return $this->storeSplit($request);
         }
 
+        if ($request->input('funding') === SettlementHold::FUNDING_BANK_TRANSFER) {
+            return $this->storeBankTransfer($request);
+        }
+
         $validator = Validator::make($request->all(), [
             'reference' => 'required|string|max:191',
             'connected_account_id' => 'required|string',
@@ -112,6 +116,94 @@ class SettlementHoldController extends Controller
             return response()->json(['status' => 'success', 'data' => $this->present($hold)], 201);
         } catch (Exception $e) {
             Log::error('Opening a hold failed', ['error' => $e->getMessage()]);
+
+            return $this->fail($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Open a hold paid by bank transfer. Instead of a payment_url, the
+     * response carries pay_to: the bank details of an account opened for
+     * this payment alone. Whatever arrives in it belongs to this hold.
+     */
+    protected function storeBankTransfer(Request $request): JsonResponse
+    {
+        $currencies = array_keys(array_filter((array) config('gateways.modulr.product_codes', [])));
+
+        $validator = Validator::make($request->all(), [
+            'reference' => 'required|string|max:191',
+            'amount' => 'required|numeric|min:1',
+            'currency' => ['required', 'string', 'size:3', function ($attribute, $value, $fail) use ($currencies) {
+                if (!in_array(strtoupper((string) $value), $currencies, true)) {
+                    $fail(sprintf('Bank-transfer holds can be opened in %s.', $currencies ? implode(', ', $currencies) : 'no currency yet'));
+                }
+            }],
+            'split' => 'required|array',
+            'flow' => 'nullable|string|max:64',
+            'parties' => 'nullable|array|max:20',
+            'parties.*' => ['string', 'regex:/^bnk_/'],
+            'on_expiry' => 'nullable|in:refund,release',
+        ], [
+            'parties.*.regex' => 'Bank-transfer holds pay participants added with bank details (bnk_ ids).',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->fail($validator->errors()->first(), 422);
+        }
+
+        if ($error = SplitCalculator::validate($request->input('split'))) {
+            return $this->fail($error, 422);
+        }
+
+        try {
+            $merchant = $this->merchant($request);
+            $reference = $request->input('reference');
+
+            $existing = SettlementHold::forMerchant($merchant->id)->where('reference', $reference)->first();
+
+            if ($existing) {
+                return response()->json([
+                    'status' => 'success',
+                    'data' => $this->present($existing),
+                    'message' => 'Hold already exists for this reference.',
+                ], 200);
+            }
+
+            $parties = (array) $request->input('parties', []);
+
+            try {
+                $this->engine->planShares(
+                    $merchant->id,
+                    (float) $request->input('amount'),
+                    $request->input('currency'),
+                    $request->input('split'),
+                    $parties,
+                    SettlementHold::FUNDING_BANK_TRANSFER,
+                );
+            } catch (\InvalidArgumentException $e) {
+                return $this->fail($e->getMessage(), 422);
+            } catch (\RuntimeException $e) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Not every participant can take a share.',
+                    'blockers' => [$e->getMessage()],
+                ], 409);
+            }
+
+            $hold = $this->engine->openBankTransfer(
+                $merchant->id,
+                $reference,
+                (float) $request->input('amount'),
+                strtoupper($request->input('currency')),
+                $request->input('split'),
+                $parties,
+                $request->input('flow'),
+                $request->input('on_expiry', 'refund'),
+            );
+
+            return response()->json(['status' => 'success', 'data' => $this->present($hold)], 201);
+        } catch (Exception $e) {
+            Log::error('Opening a bank-transfer hold failed', ['error' => $e->getMessage()]);
 
             return $this->fail($e->getMessage(), 500);
         }
@@ -442,7 +534,12 @@ class SettlementHoldController extends Controller
             $data['parties'] = $hold->parties ?? [];
             $data['on_expiry'] = $hold->on_expiry;
 
-            if ($hold->status === SettlementHold::STATUS_AWAITING_PAYMENT) {
+            if ($hold->isBankTransfer()) {
+                $data['pay_to'] = array_merge($hold->bank_details ?? [], [
+                    'reference' => $hold->reference,
+                ]);
+                $data['amount_received'] = $hold->amountReceived();
+            } elseif ($hold->status === SettlementHold::STATUS_AWAITING_PAYMENT) {
                 $data['payment_url'] = $hold->payment_url;
             }
 
