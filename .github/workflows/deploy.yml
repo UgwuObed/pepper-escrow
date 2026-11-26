@@ -64,9 +64,21 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
           script: |
+            set -e
             cd /home/${{ secrets.EC2_USER }}/pepper-escrow
-            git pull origin main
+
+            # Make the server's code exactly what was pushed. `git pull` used
+            # to fail here whenever the server's history had diverged from
+            # GitHub's (after a history rewrite), and the script carried on:
+            # every deploy rebuilt the old code and still reported success,
+            # for a month. The server holds no code of its own (.env is
+            # untracked and survives this), so resetting to origin is safe,
+            # and set -e stops the deploy if any step fails.
+            git fetch origin main
+            git reset --hard origin/main
+            echo "Deploying $(git log -1 --format='%h %s')"
 
             # Ensure .env exists with APP_KEY (generated only once)
             if [ ! -f .env ]; then
