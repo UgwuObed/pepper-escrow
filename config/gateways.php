@@ -91,4 +91,35 @@ return [
         'webhook_secret' => env('VFD_WEBHOOK_SECRET'),
         'webhook_ips' => env('VFD_WEBHOOK_IPS', ''),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Modulr Configuration
+    |--------------------------------------------------------------------------
+    |
+    | International bank transfers: one GBP account (sort code + account
+    | number) or EUR account (IBAN) per hold, so every incoming transfer
+    | identifies its own payment.
+    |
+    | Requests are signed with HMAC over the Date and x-mod-nonce headers.
+    | Product codes come from Modulr at onboarding and decide which kind of
+    | account (and, for EUR, which country's IBAN) is issued.
+    |
+    | MODULR_WEBHOOK_ID and MODULR_WEBHOOK_SECRET belong to the PAYIN
+    | subscription. The secret is chosen by us (exactly 32 characters) and
+    | handed to Modulr when subscribing.
+    |
+    */
+    'modulr' => [
+        'api_key' => env('MODULR_API_KEY'),
+        'api_secret' => env('MODULR_API_SECRET'),
+        'base_url' => env('MODULR_BASE_URL', 'https://api-sandbox.modulrfinance.com/api-sandbox'),
+        'customer_id' => env('MODULR_CUSTOMER_ID'),
+        'product_codes' => [
+            'GBP' => env('MODULR_GBP_PRODUCT_CODE'),
+            'EUR' => env('MODULR_EUR_PRODUCT_CODE'),
+        ],
+        'webhook_id' => env('MODULR_WEBHOOK_ID'),
+        'webhook_secret' => env('MODULR_WEBHOOK_SECRET'),
+    ],
 ];

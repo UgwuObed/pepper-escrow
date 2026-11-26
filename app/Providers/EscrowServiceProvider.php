@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\PaymentGateways\FlutterwaveGateway;
+use App\PaymentGateways\ModulrGateway;
 use App\PaymentGateways\PaystackGateway;
 use App\PaymentGateways\SeerBitGateway;
 use App\PaymentGateways\StripeConnectGateway;
@@ -40,6 +41,10 @@ class EscrowServiceProvider extends ServiceProvider
 
             if (config('gateways.vfd.consumer_key')) {
                 $service->registerGateway('vfd', new VfdGateway(config('gateways.vfd')));
+            }
+
+            if (config('gateways.modulr.api_key')) {
+                $service->registerGateway('modulr', new ModulrGateway(config('gateways.modulr')));
             }
 
             return $service;
