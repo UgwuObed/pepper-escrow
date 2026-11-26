@@ -73,6 +73,34 @@ class ConnectedAccountService
     }
 
     /**
+     * Add a participant who is paid to a bank account, for bank-transfer
+     * holds. Nothing is created at a processor: their share waits in the
+     * hold's own account and is paid to these details on release.
+     *
+     * @param array{payee_name: string, sort_code: ?string, bank_account_number: ?string, iban: ?string, bic: ?string} $bank
+     *        already checked by BankDetails::normalise()
+     */
+    public function addBankPayee(
+        Merchant $merchant,
+        string $email,
+        string $country,
+        array $bank,
+        ?string $label = null,
+    ): ConnectedAccount {
+        return ConnectedAccount::create(array_merge($bank, [
+            'merchant_id' => $merchant->id,
+            'provider' => ConnectedAccount::PROVIDER_BANK,
+            'account_type' => ConnectedAccount::TYPE_RECIPIENT,
+            'account_id' => 'bnk_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(20)),
+            'seller_email' => $email,
+            'label' => $label,
+            'country' => strtoupper($country),
+            'payouts_enabled' => true,
+            'details_submitted' => true,
+        ]));
+    }
+
+    /**
      * A fresh onboarding link. These expire in minutes, so generate one per
      * visit rather than storing it.
      */

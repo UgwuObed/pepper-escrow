@@ -261,6 +261,7 @@ class ModulrGateway implements PaymentGatewayInterface
         return [
             'account_id' => (string) ($data['id'] ?? ''),
             'status' => (string) ($data['status'] ?? ''),
+            'balance' => isset($data['balance']) ? (float) $data['balance'] : null,
             'sort_code' => $pick('sortCode'),
             'account_number' => $pick('accountNumber'),
             'iban' => $pick('iban'),
@@ -393,7 +394,10 @@ class ModulrGateway implements PaymentGatewayInterface
      * Normalise a PAYIN notification. PaymentId is the duplicate check: the
      * EventId can change when Modulr resends.
      *
-     * @return array{payment_id: string, account_id: string, amount: float, currency: string, payer_name: ?string, reference: ?string, type: ?string}|null
+     * `payer` holds the sender's bank details where Modulr reports them, in
+     * the shape payOut() takes, so a refund can be sent back to them.
+     *
+     * @return array{payment_id: string, account_id: string, amount: float, currency: string, payer_name: ?string, payer: ?array, reference: ?string, type: ?string}|null
      */
     public static function parsePayin(array $payload): ?array
     {
@@ -401,12 +405,26 @@ class ModulrGateway implements PaymentGatewayInterface
             return null;
         }
 
+        $payerName = $payload['PayerName'] ?? ($payload['Payer']['Name'] ?? null);
+        $identifier = $payload['Payer']['Identifier'] ?? [];
+
+        $payer = array_filter([
+            'name' => $payerName,
+            'sort_code' => $identifier['SortCode'] ?? $identifier['sortCode'] ?? null,
+            'account_number' => $identifier['AccountNumber'] ?? $identifier['accountNumber'] ?? null,
+            'iban' => $identifier['Iban'] ?? $identifier['iban'] ?? null,
+            'bic' => $identifier['Bic'] ?? $identifier['bic'] ?? null,
+        ]);
+
+        $payable = !empty($payer['name']) && (!empty($payer['iban']) || (!empty($payer['sort_code']) && !empty($payer['account_number'])));
+
         return [
             'payment_id' => (string) $payload['PaymentId'],
             'account_id' => (string) $payload['AccountId'],
             'amount' => (float) ($payload['Amount'] ?? 0),
             'currency' => strtoupper((string) ($payload['Currency'] ?? '')),
-            'payer_name' => $payload['PayerName'] ?? ($payload['Payer']['Name'] ?? null),
+            'payer_name' => $payerName,
+            'payer' => $payable ? $payer : null,
             'reference' => $payload['PaymentReference'] ?? null,
             'type' => $payload['Type'] ?? null,
         ];

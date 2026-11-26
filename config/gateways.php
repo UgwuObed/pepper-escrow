@@ -121,5 +121,9 @@ return [
         ],
         'webhook_id' => env('MODULR_WEBHOOK_ID'),
         'webhook_secret' => env('MODULR_WEBHOOK_SECRET'),
+        // The latest release date for a bank-transfer hold, counted from
+        // when it is paid. Modulr sets no limit of its own; this keeps money
+        // from being locked indefinitely, as the Stripe limits do.
+        'max_hold_days' => (int) env('MODULR_MAX_HOLD_DAYS', 90),
     ],
 ];

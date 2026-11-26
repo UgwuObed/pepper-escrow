@@ -123,6 +123,10 @@ Route::group([
 // signature is the only thing establishing who sent it)
 Route::post('stripe/connect/webhook', [\App\Http\Controllers\Client\ConnectedAccountController::class, 'webhook']);
 
+// Public Modulr webhook (no API key — Modulr calls this). Pay-ins into
+// bank-transfer holds' accounts; each is also confirmed against the balance.
+Route::post('modulr/webhook', \App\Http\Controllers\Client\ModulrWebhookController::class);
+
 // Held payments and the conditions that release them (authenticated by API key).
 // Addressed by the partner's own reference rather than our row id.
 Route::group([

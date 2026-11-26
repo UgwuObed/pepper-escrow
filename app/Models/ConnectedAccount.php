@@ -14,6 +14,15 @@ class ConnectedAccount extends Model
 
     public const TYPES = [self::TYPE_HOLDING, self::TYPE_RECIPIENT];
 
+    public const PROVIDER_STRIPE = 'stripe';
+
+    /**
+     * A participant paid to an ordinary bank account, used by bank-transfer
+     * holds. There is no account at a processor: the share waits in the
+     * hold's own account and is paid to these bank details on release.
+     */
+    public const PROVIDER_BANK = 'bank';
+
     protected $fillable = [
         'merchant_id',
         'provider',
@@ -21,6 +30,11 @@ class ConnectedAccount extends Model
         'account_id',
         'seller_email',
         'label',
+        'payee_name',
+        'sort_code',
+        'bank_account_number',
+        'iban',
+        'bic',
         'country',
         'charges_enabled',
         'payouts_enabled',
@@ -103,15 +117,51 @@ class ConnectedAccount extends Model
         return $this->account_type === self::TYPE_RECIPIENT;
     }
 
+    public function isBankPayee(): bool
+    {
+        return $this->provider === self::PROVIDER_BANK;
+    }
+
+    public function hasBankDetails(): bool
+    {
+        return trim((string) $this->payee_name) !== ''
+            && ($this->iban || ($this->sort_code && $this->bank_account_number));
+    }
+
+    /** The bank details a payout is sent to, in the shape the gateway takes. */
+    public function payee(): array
+    {
+        return array_filter([
+            'name' => $this->payee_name,
+            'sort_code' => $this->sort_code,
+            'account_number' => $this->bank_account_number,
+            'iban' => $this->iban,
+            'bic' => $this->bic,
+        ]);
+    }
+
+    /** Whether a released share can actually be sent to this participant. */
+    public function canBePaidOut(): bool
+    {
+        return $this->isBankPayee() ? $this->hasBankDetails() : (bool) $this->payouts_enabled;
+    }
+
     /**
      * Whether a share of a split payment can be placed here and held.
      *
      * A share sits in the party's own balance from the moment it is paid
      * until it is released, so the account needs the same lock as a holding
      * account: manual payouts and no dashboard from which to pay itself out.
+     *
+     * A bank payee holds nothing itself, since its share waits in the hold's
+     * own account, so it only needs bank details to be paid to.
      */
     public function canHoldShares(): bool
     {
+        if ($this->isBankPayee()) {
+            return $this->isRecipient() && $this->hasBankDetails();
+        }
+
         return $this->isRecipient()
             && $this->details_submitted
             && $this->payouts_enabled
@@ -126,6 +176,12 @@ class ConnectedAccount extends Model
     {
         if (!$this->isRecipient()) {
             return ['This is a holding account. Split payments are shared between participant accounts.'];
+        }
+
+        if ($this->isBankPayee()) {
+            return $this->hasBankDetails()
+                ? []
+                : ['The participant\'s bank details are incomplete.'];
         }
 
         $blockers = [];

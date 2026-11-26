@@ -47,6 +47,29 @@ class SellerDashboardService
      */
     public function forAccount(ConnectedAccount $account): array
     {
+        // A bank payee has no processor account: there is no onboarding, no
+        // balance of their own and no payouts to list. Their shares are the
+        // whole picture, and those come from our own ledger.
+        if ($account->isBankPayee()) {
+            return [
+                'seller' => [
+                    'account_id' => $account->account_id,
+                    'email' => $account->seller_email,
+                    'country' => $account->country,
+                ],
+                'onboarding' => [
+                    'state' => $account->hasBankDetails() ? 'complete' : 'action_required',
+                    'message' => $account->hasBankDetails()
+                        ? 'Released shares are paid to your bank account.'
+                        : 'Your bank details are incomplete.',
+                ],
+                'holds' => [],
+                'shares' => $this->shares($account),
+                'balance' => ['available' => null, 'source' => 'not_applicable'],
+                'payouts' => [],
+            ];
+        }
+
         return [
             'seller' => [
                 'account_id' => $account->account_id,

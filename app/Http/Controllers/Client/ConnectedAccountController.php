@@ -10,6 +10,7 @@ use App\Services\ConnectedAccountService;
 use App\Services\SellerDashboardService;
 use App\Services\SettlementRulesEngine;
 use App\Services\TenantService;
+use App\Support\BankDetails;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -48,6 +49,7 @@ class ConnectedAccountController extends Controller
             'country' => 'required|string|size:2',
             'type' => 'nullable|in:' . implode(',', ConnectedAccount::TYPES),
             'label' => 'nullable|string|max:191',
+            'bank_account' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -58,6 +60,33 @@ class ConnectedAccountController extends Controller
             $merchant = $this->tenantService->getMerchantFromRequest($request);
             if (!$merchant) {
                 return response()->json(['status' => 'error', 'message' => 'Merchant not found.'], 404);
+            }
+
+            // A participant with bank details is paid by bank transfer: no
+            // processor account and no onboarding link.
+            if ($request->filled('bank_account')) {
+                if ($request->input('type', ConnectedAccount::TYPE_RECIPIENT) !== ConnectedAccount::TYPE_RECIPIENT) {
+                    return response()->json(['status' => 'error', 'message' => 'A participant with bank_account must be of type recipient.'], 422);
+                }
+
+                try {
+                    $bank = BankDetails::normalise((array) $request->input('bank_account'));
+                } catch (\InvalidArgumentException $e) {
+                    return response()->json(['status' => 'error', 'message' => $e->getMessage()], 422);
+                }
+
+                $account = $this->accounts->addBankPayee(
+                    $merchant,
+                    $request->input('email'),
+                    $request->input('country'),
+                    $bank,
+                    $request->input('label'),
+                );
+
+                return response()->json([
+                    'status' => 'success',
+                    'data' => ['account' => $this->present($account), 'onboarding_url' => null, 'onboarding_expires_at' => null],
+                ], 201);
             }
 
             $account = $this->accounts->onboard(
@@ -121,6 +150,11 @@ class ConnectedAccountController extends Controller
     {
         try {
             $account = $this->findForMerchant($request, $id);
+
+            if ($refused = $this->stripeOnly($account)) {
+                return $refused;
+            }
+
             $link = $this->accounts->onboardingLink($account);
 
             return response()->json([
@@ -137,7 +171,13 @@ class ConnectedAccountController extends Controller
     public function sync(Request $request, int $id): JsonResponse
     {
         try {
-            $account = $this->accounts->syncStatus($this->findForMerchant($request, $id));
+            $found = $this->findForMerchant($request, $id);
+
+            if ($refused = $this->stripeOnly($found)) {
+                return $refused;
+            }
+
+            $account = $this->accounts->syncStatus($found);
 
             return response()->json(['status' => 'success', 'data' => $this->present($account)]);
         } catch (ModelNotFoundException $e) {
@@ -224,6 +264,10 @@ class ConnectedAccountController extends Controller
         try {
             $account = $this->findForMerchant($request, $id);
 
+            if ($refused = $this->stripeOnly($account)) {
+                return $refused;
+            }
+
             $components = $request->input('components', ['payouts', 'account_management']);
 
             if (!is_array($components) || empty($components)) {
@@ -240,6 +284,14 @@ class ConnectedAccountController extends Controller
 
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
+    }
+
+    /** A bank payee has no processor account, so Stripe-only actions do not apply. */
+    protected function stripeOnly(ConnectedAccount $account): ?JsonResponse
+    {
+        return $account->isBankPayee()
+            ? response()->json(['status' => 'error', 'message' => 'This participant is paid by bank transfer and has no Stripe account.'], 409)
+            : null;
     }
 
     protected function findForMerchant(Request $request, int $id): ConnectedAccount
@@ -285,6 +337,14 @@ class ConnectedAccountController extends Controller
         return [
             'id' => $account->id,
             'account_id' => $account->account_id,
+            'provider' => $account->provider ?? ConnectedAccount::PROVIDER_STRIPE,
+            'bank_account' => $account->isBankPayee() ? array_filter([
+                'name' => $account->payee_name,
+                'sort_code' => $account->sort_code,
+                'account_number' => BankDetails::mask($account->bank_account_number),
+                'iban' => BankDetails::mask($account->iban),
+                'bic' => $account->bic,
+            ]) : null,
             'type' => $account->account_type ?? ConnectedAccount::TYPE_HOLDING,
             'label' => $account->label,
             'email' => $account->seller_email,

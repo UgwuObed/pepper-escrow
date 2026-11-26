@@ -254,9 +254,24 @@ class ModulrGatewayTest extends TestCase
             'amount' => 1000.0,
             'currency' => 'EUR',
             'payer_name' => 'Importer BV',
+            'payer' => null,
             'reference' => 'PO-2026-0412',
             'type' => 'PI_SEPA_INST',
         ], $payin);
+    }
+
+    public function test_parse_payin_keeps_the_payers_bank_details_for_refunds(): void
+    {
+        $payin = ModulrGateway::parsePayin([
+            'EventName' => 'PAYIN',
+            'PaymentId' => 'P1',
+            'AccountId' => 'A1',
+            'Amount' => '10.00',
+            'Currency' => 'GBP',
+            'Payer' => ['Name' => 'Jane Payer', 'Identifier' => ['Type' => 'SCAN', 'SortCode' => '040004', 'AccountNumber' => '12345678']],
+        ]);
+
+        $this->assertSame(['name' => 'Jane Payer', 'sort_code' => '040004', 'account_number' => '12345678'], $payin['payer']);
     }
 
     public function test_parse_payin_ignores_other_events(): void
